@@ -151,9 +151,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📁 Upload Data")
     uploaded_file = st.file_uploader(
-        "Upload Online Retail II (.xlsx)",
+        "Upload Your Dataset (.xlsx or .csv)",
         type=["xlsx", "csv"],
-        help="Upload the Online Retail II dataset"
+        help="Upload your retail transaction dataset"
     )
     st.markdown("---")
     st.markdown("<small style='color:#555'>Capstone Project · Customer Analytics</small>", unsafe_allow_html=True)
@@ -163,7 +163,7 @@ st.markdown("""
 <div style='padding: 32px 0 16px 0'>
     <h1 style='font-size:42px; margin:0; color:#f0c060;'>Customer Segmentation</h1>
     <p style='color:#888; font-size:16px; margin-top:6px;'>
-        RFM Analysis &amp; K-Means Clustering · Online Retail II Dataset
+        RFM Analysis &amp; K-Means Clustering · Customer Analytics
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -176,7 +176,7 @@ if uploaded_file is None:
         <div style='font-size:56px; margin-bottom:16px;'>📂</div>
         <h2 style='color:#f0c060; font-family:"DM Serif Display",serif;'>Upload Your Dataset</h2>
         <p style='color:#888; max-width:480px; margin:0 auto; line-height:1.7;'>
-            Upload the <strong style='color:#e8e4dc;'>Online Retail II</strong> Excel file using the
+            Upload your retail transaction dataset using the
             sidebar to begin the full segmentation pipeline.
         </p>
         <div style='margin-top:28px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap;'>
@@ -398,7 +398,7 @@ with tab3:
         [col1, col2, col3],
         ["Recency", "Frequency", "Monetary"],
         ["#e05060", "#4e9af1", "#50c878"],
-        ["Days since last purchase", "Number of unique invoices", "Total spend (£)"]
+        ["Days since last purchase", "Number of unique invoices", "Total spend (₹)"]
     ):
         col.markdown(f"""
         <div style='background:#1a1a24; border:1px solid #2a2a40; border-top:4px solid {color};
@@ -551,7 +551,7 @@ with tab5:
                     <div style='color:#888; font-size:13px; margin:6px 0 14px 0;'>{desc}</div>
                     <div style='display:flex; gap:20px; flex-wrap:wrap;'>
                         <div><div style='color:#555; font-size:11px; text-transform:uppercase; letter-spacing:1px;'>Avg Spend</div>
-                             <div style='color:#e8e4dc; font-weight:600;'>£{row["MonetaryValue"]:,.0f}</div></div>
+                             <div style='color:#e8e4dc; font-weight:600;'>₹{row["MonetaryValue"]:,.0f}</div></div>
                         <div><div style='color:#555; font-size:11px; text-transform:uppercase; letter-spacing:1px;'>Avg Orders</div>
                              <div style='color:#e8e4dc; font-weight:600;'>{row["Frequency"]:.1f}</div></div>
                         <div><div style='color:#555; font-size:11px; text-transform:uppercase; letter-spacing:1px;'>Avg Recency</div>
@@ -745,7 +745,7 @@ with tab7:
         for col, label, val in zip(
             [c1, c2, c3, c4],
             ["Total Revenue", "Avg Customer Spend", "Avg Order Frequency", "Avg Recency (days)"],
-            [f"£{total_revenue:,.0f}", f"£{avg_order_val:,.0f}", f"{avg_frequency:.1f}", f"{avg_recency:.0f}"]
+            [f"₹{total_revenue:,.0f}", f"₹{avg_order_val:,.0f}", f"{avg_frequency:.1f}", f"{avg_recency:.0f}"]
         ):
             col.markdown(f"""
             <div class="metric-card">
@@ -852,7 +852,7 @@ with tab8:
                             <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Segment</div>
                                  <div style='color:#e8e4dc; font-weight:600;'>{row["Segment"]}</div></div>
                             <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Total Spend</div>
-                                 <div style='color:#e8e4dc; font-weight:600;'>£{row["MonetaryValue"]:,.2f}</div></div>
+                                 <div style='color:#e8e4dc; font-weight:600;'>₹{row["MonetaryValue"]:,.2f}</div></div>
                             <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Orders</div>
                                  <div style='color:#e8e4dc; font-weight:600;'>{int(row["Frequency"])}</div></div>
                             <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Last Purchase</div>
@@ -872,7 +872,7 @@ with tab8:
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             min_m, max_m = float(search_df["MonetaryValue"].min()), float(search_df["MonetaryValue"].max())
-            m_range = st.slider("Monetary Value (£)", min_m, max_m, (min_m, max_m))
+            m_range = st.slider("Monetary Value (₹)", min_m, max_m, (min_m, max_m))
         with fc2:
             min_f, max_f = int(search_df["Frequency"].min()), int(search_df["Frequency"].max())
             f_range = st.slider("Frequency (orders)", min_f, max_f, (min_f, max_f))
@@ -890,7 +890,7 @@ with tab8:
         st.markdown(f"<p style='color:#888; margin:12px 0;'>Showing <strong style='color:#f0c060;'>{len(filtered):,}</strong> customers</p>", unsafe_allow_html=True)
         st.dataframe(
             filtered[["Customer ID","Segment","MonetaryValue","Frequency","Recency"]].rename(columns={
-                "MonetaryValue": "Total Spend (£)", "Frequency": "Orders", "Recency": "Days Since Last Purchase"
+                "MonetaryValue": "Total Spend (₹)", "Frequency": "Orders", "Recency": "Days Since Last Purchase"
             }).reset_index(drop=True),
             use_container_width=True
         )
