@@ -203,6 +203,21 @@ def load_data(file):
 with st.spinner("Loading data..."):
     df = load_data(uploaded_file)
 
+# ── Normalize column names (handle case differences) ─────────────────────────
+col_map = {}
+for col in df.columns:
+    stripped = col.strip()
+    lower = stripped.lower().replace(" ", "")
+    if lower == "invoice": col_map[col] = "Invoice"
+    elif lower == "stockcode": col_map[col] = "StockCode"
+    elif lower == "description": col_map[col] = "Description"
+    elif lower == "quantity": col_map[col] = "Quantity"
+    elif lower == "invoicedate": col_map[col] = "InvoiceDate"
+    elif lower == "price" or lower == "unitprice": col_map[col] = "Price"
+    elif lower == "customerid" or lower == "customer id": col_map[col] = "Customer ID"
+    elif lower == "country": col_map[col] = "Country"
+df.rename(columns=col_map, inplace=True)
+
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Data Overview",
