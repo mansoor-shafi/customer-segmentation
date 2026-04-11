@@ -146,8 +146,9 @@ with st.sidebar:
     st.markdown("*RFM Analysis + K-Means Clustering*")
     st.markdown("---")
     st.markdown("### ⚙️ Settings")
-    n_clusters = st.slider("Number of Clusters (K)", min_value=2, max_value=10, value=4)
     remove_outliers = st.checkbox("Remove Outliers (IQR method)", value=True)
+    auto_k = st.checkbox("🤖 Auto-detect Best K", value=True, help="Automatically finds the optimal number of clusters using Silhouette + Elbow methods")
+    n_clusters = st.slider("Number of Clusters (K) — manual override", min_value=2, max_value=10, value=4, help="Only used when Auto-detect is OFF")
     st.markdown("---")
     st.markdown("### 📁 Upload Data")
     uploaded_file = st.file_uploader(
@@ -462,6 +463,48 @@ with tab4:
             inertias.append(km.inertia_)
             sil_scores.append(silhouette_score(scaled_df, labels))
 
+    # ── Auto K Detection ──────────────────────────────────────────────────────
+    # Method 1: Best Silhouette Score
+    best_sil_k = list(k_vals)[sil_scores.index(max(sil_scores))]
+
+    # Method 2: Elbow method — largest drop in inertia (second derivative)
+    deltas = [inertias[i] - inertias[i+1] for i in range(len(inertias)-1)]
+    accel  = [deltas[i] - deltas[i+1] for i in range(len(deltas)-1)]
+    best_elbow_k = list(k_vals)[accel.index(max(accel)) + 1]
+
+    # Combined vote: average of both, round to nearest int
+    best_auto_k = round((best_sil_k + best_elbow_k) / 2)
+    best_auto_k = max(2, min(10, best_auto_k))  # clamp between 2-10
+
+    # Use auto or manual
+    if auto_k:
+        final_k = best_auto_k
+    else:
+        final_k = n_clusters
+
+    # ── Show Auto K Banner ────────────────────────────────────────────────────
+    if auto_k:
+        st.markdown(f"""
+        <div style='background:linear-gradient(135deg,#1a2a1a,#1a2410); border:1px solid #2a4a2a;
+                    border-left:5px solid #50c878; border-radius:10px; padding:16px 20px; margin-bottom:20px;'>
+            <div style='font-size:16px; font-weight:700; color:#50c878; margin-bottom:6px;'>
+                🤖 Auto-detected Best K = <span style='font-size:22px;'>{final_k}</span>
+            </div>
+            <div style='color:#aaa; font-size:13px; line-height:1.8;'>
+                📈 <strong style='color:#e8e4dc;'>Silhouette method</strong> suggested k = <strong style='color:#f0c060;'>{best_sil_k}</strong>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                📐 <strong style='color:#e8e4dc;'>Elbow method</strong> suggested k = <strong style='color:#f0c060;'>{best_elbow_k}</strong>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                ✅ <strong style='color:#e8e4dc;'>Combined best</strong> = <strong style='color:#50c878;'>{final_k}</strong>
+            </div>
+            <div style='color:#666; font-size:12px; margin-top:6px;'>
+                You can turn off Auto-detect in the sidebar to manually override this value.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info(f"⚙️ Using manually selected K = **{final_k}** (Auto-detect is OFF). Recommended K by auto-detection: **{best_auto_k}**")
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5), facecolor='#0f0f13')
     for ax, values, ylabel, title, color in zip(
         [ax1, ax2],
@@ -472,7 +515,9 @@ with tab4:
     ):
         ax.set_facecolor('#16161d')
         ax.plot(list(k_vals), values, marker='o', color=color, linewidth=2.5, markersize=7)
-        ax.axvline(x=n_clusters, color='#e05060', linestyle='--', alpha=0.7, label=f'Selected k={n_clusters}')
+        ax.axvline(x=final_k, color='#e05060', linestyle='--', alpha=0.9, label=f'Selected k={final_k}')
+        if auto_k and best_sil_k != final_k:
+            ax.axvline(x=best_sil_k, color='#50c878', linestyle=':', alpha=0.6, label=f'Silhouette k={best_sil_k}')
         ax.set_xlabel('Number of Clusters (k)', color='#888')
         ax.set_ylabel(ylabel, color='#888')
         ax.set_title(title, color='#e8e4dc', fontsize=13)
@@ -484,7 +529,8 @@ with tab4:
     plt.close()
 
     # Final clustering
-    kmeans_final = KMeans(n_clusters=n_clusters, random_state=42, max_iter=1000, n_init=10)
+    n_clusters = final_k   # update n_clusters so rest of app uses correct value
+    kmeans_final = KMeans(n_clusters=final_k, random_state=42, max_iter=1000, n_init=10)
     cluster_labels = kmeans_final.fit_predict(scaled_df)
     non_outliers_df = non_outliers_df.copy()
     non_outliers_df["Cluster"] = cluster_labels
