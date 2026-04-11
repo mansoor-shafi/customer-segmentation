@@ -265,12 +265,13 @@ if missing_cols:
         st.stop()
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Data Overview",
     "🧹 Cleaning",
     "📐 RFM Features",
     "📈 Clustering",
-    "🎯 Segments"
+    "🎯 Segments",
+    "💡 Strategies"
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -587,3 +588,137 @@ with tab5:
         file_name="customer_segments.csv",
         mime="text/csv"
     )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 6 — STRATEGIES
+# ─────────────────────────────────────────────────────────────────────────────
+with tab6:
+    st.markdown('<div class="section-title">Customer Segment Strategies</div>', unsafe_allow_html=True)
+    st.markdown("<p style='color:#888; margin-bottom:24px;'>Actionable marketing and retention strategies tailored for each customer segment to grow your business.</p>", unsafe_allow_html=True)
+
+    STRATEGIES = {
+        0: {
+            "name": "At-Risk Customers",
+            "icon": "⚠️",
+            "color": "#e05060",
+            "tagline": "Previously loyal — now drifting away. Act fast before they're gone.",
+            "goal": "Re-engage before they churn permanently",
+            "tactics": [
+                ("📧 Win-Back Email Campaign", "Send a personalized 'We miss you' email with their purchase history and a limited-time discount (e.g. 15% off). Reference their last purchase to make it feel personal."),
+                ("🎁 Exclusive Re-Engagement Offer", "Offer a special deal only for returning customers — bundle discounts, free shipping, or a loyalty bonus. Create urgency with a 7-day expiry."),
+                ("📞 Personal Outreach", "For high-spending at-risk customers, assign a customer success rep to reach out directly via phone or personalized message."),
+                ("🔔 Reminder Notifications", "Set up automated reminders via SMS or push notifications after 30, 60, and 90 days of inactivity with progressively better offers."),
+                ("📊 Feedback Survey", "Ask why they stopped buying. Short 3-question survey. Use responses to fix product/service issues and show customers you care."),
+            ],
+            "kpi": ["Re-activation rate > 20%", "Reduce churn by 30%", "Recover 15% of lost revenue"],
+        },
+        1: {
+            "name": "Occasional Buyers",
+            "icon": "🛒",
+            "color": "#f0a050",
+            "tagline": "They like you — they just need more reasons to come back.",
+            "goal": "Increase purchase frequency and build habit",
+            "tactics": [
+                ("🎯 Loyalty Program", "Introduce a points-based rewards system. Every purchase earns points redeemable for discounts. Occasional buyers respond strongly to visible progress toward a reward."),
+                ("📅 Seasonal Promotions", "Target them during peak seasons (holidays, sales events) with early-access offers. Occasional buyers often need an occasion to justify purchasing."),
+                ("🛍️ Product Recommendations", "Use their purchase history to recommend complementary products. 'Customers who bought X also loved Y' increases basket size."),
+                ("💌 Monthly Newsletter", "Keep your brand top-of-mind with a monthly email featuring new arrivals, bestsellers, and exclusive member deals — not just promotions."),
+                ("🎉 Birthday & Anniversary Offers", "Send a special discount on their birthday or account anniversary. Personal touches convert occasional buyers into regulars."),
+            ],
+            "kpi": ["Increase purchase frequency by 40%", "Grow average order value by 20%", "Convert 25% to loyal segment"],
+        },
+        2: {
+            "name": "High-Value Loyals",
+            "icon": "👑",
+            "color": "#50c878",
+            "tagline": "Your best customers. Protect them, reward them, make them feel special.",
+            "goal": "Retain, delight, and turn them into brand ambassadors",
+            "tactics": [
+                ("💎 VIP / Premium Membership", "Create an exclusive VIP tier with perks like free express shipping, early sale access, dedicated support, and members-only products. Make them feel elite."),
+                ("🤝 Referral Program", "Loyal customers are your best marketers. Offer them rewards (store credit, gifts) for every friend they refer who makes a purchase."),
+                ("🎁 Surprise & Delight Gifts", "Periodically send unexpected thank-you gifts, handwritten notes, or exclusive product samples. Unexpected generosity builds unbreakable loyalty."),
+                ("📣 Brand Ambassador Program", "Invite top customers to review products, feature in social media, or join advisory panels. Recognition deepens emotional connection to your brand."),
+                ("🔒 Subscription / Auto-Replenishment", "For consumable products, offer a subscription option with a small discount. Locks in recurring revenue and makes switching harder."),
+            ],
+            "kpi": ["Retain 95% of this segment", "Increase referral rate by 30%", "Grow CLV by 25%"],
+        },
+        3: {
+            "name": "New / Inactive",
+            "icon": "🌱",
+            "color": "#4e9af1",
+            "tagline": "First impressions matter. Onboard them well or lose them forever.",
+            "goal": "Convert first-timers into repeat buyers",
+            "tactics": [
+                ("👋 Welcome Series Email", "Send a 3-part automated welcome series: (1) Thank you + brand story, (2) Bestsellers + social proof, (3) First-purchase discount. Warm them up gradually."),
+                ("🏷️ First Purchase Incentive", "Offer a compelling first-order discount (e.g. 10-20% off or free shipping). Remove every barrier to that crucial second purchase."),
+                ("📱 Onboarding Journey", "Guide new customers through your product catalog with a 'Getting Started' guide, tutorial videos, or an interactive quiz to find products they'll love."),
+                ("⭐ Social Proof & Reviews", "Show them what other customers love — star ratings, reviews, UGC photos. New customers rely heavily on social proof to build trust."),
+                ("🔁 Second Purchase Push", "The key milestone is the second purchase. Trigger a special offer 7 days after the first purchase specifically designed to get them to buy again."),
+            ],
+            "kpi": ["Convert 35% to repeat buyers", "Achieve 2nd purchase within 30 days", "Reduce early churn by 40%"],
+        },
+    }
+
+    for cid, strat in STRATEGIES.items():
+        color = strat["color"]
+        st.markdown(f"""
+        <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:14px;
+                    margin-bottom:28px; overflow:hidden;'>
+            <div style='background:linear-gradient(135deg, {color}22, {color}11);
+                        border-bottom:1px solid #2a2a40; padding:20px 24px;
+                        display:flex; justify-content:space-between; align-items:center;'>
+                <div>
+                    <span style='font-size:28px; margin-right:12px;'>{strat["icon"]}</span>
+                    <span style='font-size:22px; font-family:"DM Serif Display",serif;
+                                 color:{color}; font-weight:700;'>{strat["name"]}</span>
+                    <div style='color:#aaa; font-size:14px; margin-top:6px; margin-left:42px;'>
+                        {strat["tagline"]}
+                    </div>
+                </div>
+                <div style='background:{color}22; border:1px solid {color}44; border-radius:8px;
+                            padding:8px 16px; font-size:13px; color:{color}; font-weight:600;
+                            white-space:nowrap;'>
+                    🎯 {strat["goal"]}
+                </div>
+            </div>
+            <div style='padding:20px 24px;'>
+        """, unsafe_allow_html=True)
+
+        cols = st.columns(2) if len(strat["tactics"]) > 2 else st.columns(len(strat["tactics"]))
+        for i, (title, desc) in enumerate(strat["tactics"]):
+            with cols[i % 2]:
+                st.markdown(f"""
+                <div style='background:#0f0f13; border:1px solid #2a2a40; border-left:3px solid {color};
+                            border-radius:8px; padding:14px 16px; margin-bottom:12px; height:100%;'>
+                    <div style='font-weight:600; color:#e8e4dc; margin-bottom:6px; font-size:14px;'>{title}</div>
+                    <div style='color:#888; font-size:13px; line-height:1.6;'>{desc}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        kpi_html = "".join([
+            f"<span style='background:{color}22; border:1px solid {color}44; color:{color}; "
+            f"padding:4px 12px; border-radius:20px; font-size:12px; margin:3px; display:inline-block;'>✓ {k}</span>"
+            for k in strat["kpi"]
+        ])
+        st.markdown(f"""
+        <div style='padding:0 24px 20px 24px;'>
+            <div style='color:#666; font-size:11px; text-transform:uppercase; letter-spacing:1px;
+                        margin-bottom:8px;'>Success Metrics</div>
+            {kpi_html}
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Summary comparison table ──
+    st.markdown('<div class="section-title">📋 Quick Reference — All Strategies</div>', unsafe_allow_html=True)
+    summary_data = {
+        "Segment": ["⚠️ At-Risk", "🛒 Occasional Buyers", "👑 High-Value Loyals", "🌱 New / Inactive"],
+        "Priority": ["🔴 Urgent", "🟡 Medium", "🟢 Maintain", "🔵 Nurture"],
+        "Top Strategy": ["Win-back email + discount", "Loyalty program + seasonal offers", "VIP membership + referrals", "Welcome series + 2nd purchase push"],
+        "Key Metric": ["Re-activation rate", "Purchase frequency", "Retention & CLV", "2nd purchase conversion"],
+        "Offer Type": ["15% off comeback deal", "Points & bundle deals", "Exclusive VIP perks", "10% first-order discount"],
+    }
+    summary_df = pd.DataFrame(summary_data)
+    st.dataframe(summary_df, use_container_width=True, hide_index=True)
