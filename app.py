@@ -383,6 +383,93 @@ if fixes or warnings or fatals:
             for f in fixes:
                 st.success(f"✅ {f}")
 
+# ══════════════════════════════════════════════════════════════════════════════
+# CORE PIPELINE — runs fully before any tab renders
+# ══════════════════════════════════════════════════════════════════════════════
+
+with st.spinner("⚙️ Running full pipeline..."):
+
+    # ── Step 1: Cleaning ──────────────────────────────────────────────────────
+    cleaned_df  = df.copy()
+    rows_start  = len(cleaned_df)
+
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str")
+    cleaned_df = cleaned_df[cleaned_df["Invoice"].str.match(r"^\d{6}$") |
+                            ~cleaned_df["Invoice"].str.match(r"^[A-Za-z]")]
+
+    if "StockCode" in cleaned_df.columns:
+        cleaned_df["StockCode"] = cleaned_df["StockCode"].astype("str")
+        mask_sc = (cleaned_df["StockCode"].str.match(r"^\d{5}$") |
+                   cleaned_df["StockCode"].str.match(r"^\d{5}[a-zA-Z]+$"))
+        cleaned_df = cleaned_df[mask_sc] if mask_sc.sum() > len(cleaned_df) * 0.3 else cleaned_df
+
+    cleaned_df.dropna(subset=["Customer ID"], inplace=True)
+    cleaned_df = cleaned_df[pd.to_numeric(cleaned_df["Price"], errors="coerce") > 0]
+    cleaned_df["Price"]    = pd.to_numeric(cleaned_df["Price"],    errors="coerce")
+    cleaned_df["Quantity"] = pd.to_numeric(cleaned_df["Quantity"], errors="coerce")
+    cleaned_df.dropna(subset=["Price", "Quantity"], inplace=True)
+    rows_end  = len(cleaned_df)
+    pct_kept  = rows_end / rows_start * 100 if rows_start > 0 else 0
+
+    r1 = rows_start - rows_end   # combined cleaning rows removed
+
+    # ── Step 2: Feature Engineering ──────────────────────────────────────────
+    cleaned_df["InvoiceDate"]    = pd.to_datetime(cleaned_df["InvoiceDate"], errors="coerce")
+    cleaned_df.dropna(subset=["InvoiceDate"], inplace=True)
+    cleaned_df["SalesLineTotal"] = cleaned_df["Quantity"] * cleaned_df["Price"]
+
+    aggregated_df = cleaned_df.groupby("Customer ID", as_index=False).agg(
+        MonetaryValue=("SalesLineTotal", "sum"),
+        Frequency=("Invoice",            "nunique"),
+        LastInvoiceDate=("InvoiceDate",  "max")
+    )
+    max_date = aggregated_df["LastInvoiceDate"].max()
+    aggregated_df["Recency"] = (max_date - aggregated_df["LastInvoiceDate"]).dt.days
+
+    # ── Step 3: Outlier Removal ───────────────────────────────────────────────
+    def iqr_filter(df, col):
+        Q1, Q3 = df[col].quantile(0.25), df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        return df[(df[col] <= Q3 + 1.5*IQR) & (df[col] >= Q1 - 1.5*IQR)]
+
+    if remove_outliers:
+        non_outliers_df = iqr_filter(aggregated_df, "MonetaryValue")
+        non_outliers_df = iqr_filter(non_outliers_df, "Frequency")
+        outliers_removed = len(aggregated_df) - len(non_outliers_df)
+    else:
+        non_outliers_df  = aggregated_df.copy()
+        outliers_removed = 0
+
+    # ── Step 4: Scaling ───────────────────────────────────────────────────────
+    scaler    = StandardScaler()
+    scaled    = scaler.fit_transform(non_outliers_df[["MonetaryValue", "Frequency", "Recency"]])
+    scaled_df = pd.DataFrame(scaled, index=non_outliers_df.index,
+                             columns=["MonetaryValue", "Frequency", "Recency"])
+
+    # ── Step 5: Auto K Detection ──────────────────────────────────────────────
+    inertias, sil_scores, k_vals = [], [], range(2, 13)
+    for k in k_vals:
+        km     = KMeans(n_clusters=k, random_state=42, max_iter=1000, n_init=10)
+        labels = km.fit_predict(scaled_df)
+        inertias.append(km.inertia_)
+        sil_scores.append(silhouette_score(scaled_df, labels))
+
+    best_sil_k    = list(k_vals)[sil_scores.index(max(sil_scores))]
+    deltas        = [inertias[i] - inertias[i+1] for i in range(len(inertias)-1)]
+    accel         = [deltas[i] - deltas[i+1] for i in range(len(deltas)-1)]
+    best_elbow_k  = list(k_vals)[accel.index(max(accel)) + 1]
+    best_auto_k   = max(2, min(10, round((best_sil_k + best_elbow_k) / 2)))
+
+    final_k    = best_auto_k if auto_k else n_clusters
+    n_clusters = final_k   # sync everywhere
+
+    # ── Step 6: Final Clustering ──────────────────────────────────────────────
+    kmeans_final  = KMeans(n_clusters=final_k, random_state=42, max_iter=1000, n_init=10)
+    cluster_labels = kmeans_final.fit_predict(scaled_df)
+    non_outliers_df = non_outliers_df.copy()
+    non_outliers_df["Cluster"] = cluster_labels
+    final_sil = silhouette_score(scaled_df, cluster_labels)
+
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊 Data Overview",
@@ -435,52 +522,19 @@ with tab1:
 with tab2:
     st.markdown('<div class="section-title">Data Cleaning Pipeline</div>', unsafe_allow_html=True)
 
-    cleaned_df = df.copy()
-    rows_start = len(cleaned_df)
-
-    # Step 1 — Valid invoices (6-digit)
-    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str")
-    cleaned_df = cleaned_df[cleaned_df["Invoice"].str.match(r"^\d{6}$")]
-    r1 = rows_start - len(cleaned_df)
-
-    # Step 2 — Valid stock codes
-    cleaned_df["StockCode"] = cleaned_df["StockCode"].astype("str")
-    cleaned_df = cleaned_df[
-        cleaned_df["StockCode"].str.match(r"^\d{5}$") |
-        cleaned_df["StockCode"].str.match(r"^\d{5}[a-zA-Z]+$")
-    ]
-    r2 = (rows_start - r1) - len(cleaned_df)
-
-    # Step 3 — Drop missing Customer IDs
-    before = len(cleaned_df)
-    cleaned_df.dropna(subset=["Customer ID"], inplace=True)
-    r3 = before - len(cleaned_df)
-
-    # Step 4 — Remove zero/negative prices
-    before = len(cleaned_df)
-    cleaned_df = cleaned_df[cleaned_df["Price"] > 0]
-    r4 = before - len(cleaned_df)
-
-    rows_end = len(cleaned_df)
-    pct_kept = rows_end / rows_start * 100
-
     steps = [
-        ("1", "Valid Invoice Format", f"Kept only 6-digit numeric invoices", f"−{r1:,} rows"),
-        ("2", "Valid Stock Code Format", f"Kept standard 5-digit stock codes", f"−{r2:,} rows"),
-        ("3", "Remove Missing Customer IDs", f"Dropped rows without Customer ID", f"−{r3:,} rows"),
-        ("4", "Remove Zero Price Items", f"Dropped rows where Price = 0", f"−{r4:,} rows"),
+        ("1", "Valid Invoice Format",        "Kept only valid numeric invoices",          ""),
+        ("2", "Valid Stock Code Format",      "Kept standard stock code formats",          ""),
+        ("3", "Remove Missing Customer IDs",  "Dropped rows without Customer ID",          ""),
+        ("4", "Remove Zero / Invalid Prices", "Dropped rows where Price ≤ 0 or non-numeric",""),
     ]
-    for num, title, desc, impact in steps:
+    for num, title, desc, _ in steps:
         st.markdown(f"""
         <div style='background:#1a1a24; border:1px solid #2a2a40; border-left:4px solid #f0c060;
-                    border-radius:8px; padding:14px 20px; margin-bottom:12px; display:flex;
-                    justify-content:space-between; align-items:center;'>
-            <div>
-                <span style='color:#f0c060; font-weight:700; margin-right:10px;'>Step {num}</span>
-                <strong style='color:#e8e4dc;'>{title}</strong>
-                <div style='color:#888; font-size:13px; margin-top:4px;'>{desc}</div>
-            </div>
-            <div style='color:#e05060; font-weight:600; font-size:15px; white-space:nowrap;'>{impact}</div>
+                    border-radius:8px; padding:14px 20px; margin-bottom:12px;'>
+            <span style='color:#f0c060; font-weight:700; margin-right:10px;'>Step {num}</span>
+            <strong style='color:#e8e4dc;'>{title}</strong>
+            <div style='color:#888; font-size:13px; margin-top:4px;'>{desc}</div>
         </div>""", unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
@@ -500,17 +554,6 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown('<div class="section-title">Feature Engineering — RFM</div>', unsafe_allow_html=True)
-
-    cleaned_df["InvoiceDate"] = pd.to_datetime(cleaned_df["InvoiceDate"])
-    cleaned_df["SalesLineTotal"] = cleaned_df["Quantity"] * cleaned_df["Price"]
-
-    aggregated_df = cleaned_df.groupby("Customer ID", as_index=False).agg(
-        MonetaryValue=("SalesLineTotal", "sum"),
-        Frequency=("Invoice", "nunique"),
-        LastInvoiceDate=("InvoiceDate", "max")
-    )
-    max_date = aggregated_df["LastInvoiceDate"].max()
-    aggregated_df["Recency"] = (max_date - aggregated_df["LastInvoiceDate"]).dt.days
 
     col1, col2, col3 = st.columns(3)
     for col, name, color, desc in zip(
@@ -548,59 +591,18 @@ with tab3:
     st.pyplot(fig)
     plt.close()
 
-    # Outlier removal
     if remove_outliers:
-        def iqr_filter(df, col):
-            Q1, Q3 = df[col].quantile(0.25), df[col].quantile(0.75)
-            IQR = Q3 - Q1
-            return df[(df[col] <= Q3 + 1.5*IQR) & (df[col] >= Q1 - 1.5*IQR)]
-        non_outliers_df = iqr_filter(aggregated_df, "MonetaryValue")
-        non_outliers_df = iqr_filter(non_outliers_df, "Frequency")
-        removed = len(aggregated_df) - len(non_outliers_df)
-        st.info(f"🔍 Outlier removal (IQR): **{removed}** outlier customers removed — **{len(non_outliers_df):,}** customers remain.")
+        st.info(f"🔍 Outlier removal (IQR): **{outliers_removed}** outlier customers removed — **{len(non_outliers_df):,}** customers remain.")
     else:
-        non_outliers_df = aggregated_df.copy()
         st.info("ℹ️ Outlier removal is disabled.")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 4 — CLUSTERING
+# TAB 4 — CLUSTERING (display only — pipeline already ran above)
 # ─────────────────────────────────────────────────────────────────────────────
 with tab4:
     st.markdown('<div class="section-title">K-Means Clustering</div>', unsafe_allow_html=True)
+    colors_list = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
 
-    scaler = StandardScaler()
-    scaled = scaler.fit_transform(non_outliers_df[["MonetaryValue", "Frequency", "Recency"]])
-    scaled_df = pd.DataFrame(scaled, index=non_outliers_df.index,
-                             columns=["MonetaryValue", "Frequency", "Recency"])
-
-    with st.spinner("Running K-Means for k = 2 to 12..."):
-        inertias, sil_scores, k_vals = [], [], range(2, 13)
-        for k in k_vals:
-            km = KMeans(n_clusters=k, random_state=42, max_iter=1000, n_init=10)
-            labels = km.fit_predict(scaled_df)
-            inertias.append(km.inertia_)
-            sil_scores.append(silhouette_score(scaled_df, labels))
-
-    # ── Auto K Detection ──────────────────────────────────────────────────────
-    # Method 1: Best Silhouette Score
-    best_sil_k = list(k_vals)[sil_scores.index(max(sil_scores))]
-
-    # Method 2: Elbow method — largest drop in inertia (second derivative)
-    deltas = [inertias[i] - inertias[i+1] for i in range(len(inertias)-1)]
-    accel  = [deltas[i] - deltas[i+1] for i in range(len(deltas)-1)]
-    best_elbow_k = list(k_vals)[accel.index(max(accel)) + 1]
-
-    # Combined vote: average of both, round to nearest int
-    best_auto_k = round((best_sil_k + best_elbow_k) / 2)
-    best_auto_k = max(2, min(10, best_auto_k))  # clamp between 2-10
-
-    # Use auto or manual
-    if auto_k:
-        final_k = best_auto_k
-    else:
-        final_k = n_clusters
-
-    # ── Show Auto K Banner ────────────────────────────────────────────────────
     if auto_k:
         st.markdown(f"""
         <div style='background:linear-gradient(135deg,#1a2a1a,#1a2410); border:1px solid #2a4a2a;
@@ -615,18 +617,14 @@ with tab4:
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 ✅ <strong style='color:#e8e4dc;'>Combined best</strong> = <strong style='color:#50c878;'>{final_k}</strong>
             </div>
-            <div style='color:#666; font-size:12px; margin-top:6px;'>
-                You can turn off Auto-detect in the sidebar to manually override this value.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            <div style='color:#666; font-size:12px; margin-top:6px;'>Turn off Auto-detect in sidebar to override.</div>
+        </div>""", unsafe_allow_html=True)
     else:
-        st.info(f"⚙️ Using manually selected K = **{final_k}** (Auto-detect is OFF). Recommended K by auto-detection: **{best_auto_k}**")
+        st.info(f"⚙️ Using manually selected K = **{final_k}**. Auto-detection recommended: **{best_auto_k}**")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5), facecolor='#0f0f13')
     for ax, values, ylabel, title, color in zip(
-        [ax1, ax2],
-        [inertias, sil_scores],
+        [ax1, ax2], [inertias, sil_scores],
         ["Inertia", "Silhouette Score"],
         ["Elbow Curve — Inertia", "Silhouette Scores"],
         ["#f0c060", "#50c878"]
@@ -634,63 +632,39 @@ with tab4:
         ax.set_facecolor('#16161d')
         ax.plot(list(k_vals), values, marker='o', color=color, linewidth=2.5, markersize=7)
         ax.axvline(x=final_k, color='#e05060', linestyle='--', alpha=0.9, label=f'Selected k={final_k}')
-        if auto_k and best_sil_k != final_k:
-            ax.axvline(x=best_sil_k, color='#50c878', linestyle=':', alpha=0.6, label=f'Silhouette k={best_sil_k}')
         ax.set_xlabel('Number of Clusters (k)', color='#888')
         ax.set_ylabel(ylabel, color='#888')
         ax.set_title(title, color='#e8e4dc', fontsize=13)
         ax.tick_params(colors='#666')
         ax.legend(facecolor='#1a1a24', labelcolor='#e8e4dc', edgecolor='#2a2a40')
         for spine in ax.spines.values(): spine.set_color('#2a2a40')
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    plt.tight_layout(); st.pyplot(fig); plt.close()
 
-    # Final clustering
-    n_clusters = final_k   # update n_clusters so rest of app uses correct value
-    kmeans_final = KMeans(n_clusters=final_k, random_state=42, max_iter=1000, n_init=10)
-    cluster_labels = kmeans_final.fit_predict(scaled_df)
-    non_outliers_df = non_outliers_df.copy()
-    non_outliers_df["Cluster"] = cluster_labels
-
-    final_sil = silhouette_score(scaled_df, cluster_labels)
     c1, c2, c3 = st.columns(3)
     for col, label, val in zip(
         [c1, c2, c3],
         ["Clusters", "Customers Segmented", "Silhouette Score"],
-        [n_clusters, f"{len(non_outliers_df):,}", f"{final_sil:.3f}"]
+        [final_k, f"{len(non_outliers_df):,}", f"{final_sil:.3f}"]
     ):
-        col.markdown(f"""
-        <div class="metric-card">
-            <div class="label">{label}</div>
-            <div class="value">{val}</div>
-        </div>""", unsafe_allow_html=True)
+        col.markdown(f'''<div class="metric-card"><div class="label">{label}</div><div class="value">{val}</div></div>''', unsafe_allow_html=True)
 
     st.markdown('<div class="section-title">3D Cluster Visualization</div>', unsafe_allow_html=True)
     fig = plt.figure(figsize=(10, 8), facecolor='#0f0f13')
-    ax = fig.add_subplot(111, projection='3d')
+    ax  = fig.add_subplot(111, projection='3d')
     ax.set_facecolor('#16161d')
-
-    colors_list = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
     for cid in sorted(non_outliers_df["Cluster"].unique()):
         mask = non_outliers_df["Cluster"] == cid
-        name = CLUSTER_NAMES.get(cid, f"Cluster {cid}") if n_clusters == 4 else f"Cluster {cid}"
-        ax.scatter(
-            non_outliers_df.loc[mask, "MonetaryValue"],
-            non_outliers_df.loc[mask, "Frequency"],
-            non_outliers_df.loc[mask, "Recency"],
-            c=colors_list[cid % len(colors_list)], alpha=0.7, s=18, label=name
-        )
-
+        name = CLUSTER_NAMES.get(cid, f"Cluster {cid}") if final_k == 4 else f"Cluster {cid}"
+        ax.scatter(non_outliers_df.loc[mask,"MonetaryValue"], non_outliers_df.loc[mask,"Frequency"],
+                   non_outliers_df.loc[mask,"Recency"], c=colors_list[cid % len(colors_list)], alpha=0.7, s=18, label=name)
     ax.set_xlabel('Monetary Value', color='#888', labelpad=10)
-    ax.set_ylabel('Frequency', color='#888', labelpad=10)
-    ax.set_zlabel('Recency', color='#888', labelpad=10)
+    ax.set_ylabel('Frequency',      color='#888', labelpad=10)
+    ax.set_zlabel('Recency',        color='#888', labelpad=10)
     ax.tick_params(colors='#555')
     ax.set_title('Customer Clusters in RFM Space', color='#e8e4dc', fontsize=14, pad=20)
     ax.legend(facecolor='#1a1a24', labelcolor='#e8e4dc', edgecolor='#2a2a40', fontsize=9)
     ax.xaxis.pane.fill = False; ax.yaxis.pane.fill = False; ax.zaxis.pane.fill = False
-    st.pyplot(fig)
-    plt.close()
+    st.pyplot(fig); plt.close()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 5 — SEGMENTS
