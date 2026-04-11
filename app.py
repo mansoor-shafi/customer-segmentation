@@ -265,6 +265,124 @@ if missing_cols:
         st.info("👆 Please map all missing columns above to continue.")
         st.stop()
 
+# ══════════════════════════════════════════════════════════════════════════════
+# DATA VALIDATION & AUTO-REPAIR
+# ══════════════════════════════════════════════════════════════════════════════
+
+def validate_and_repair(df):
+    """
+    Automatically detects and fixes common data quality issues.
+    Returns: (repaired_df, issues_fixed, issues_warned, fatal_errors)
+    """
+    issues_fixed  = []   # fixed silently
+    issues_warned = []   # fixed but user should know
+    fatal_errors  = []   # cannot proceed
+
+    # ── 1. Remove completely empty rows and columns ───────────────────────────
+    empty_rows = df.isnull().all(axis=1).sum()
+    if empty_rows > 0:
+        df = df.dropna(how='all')
+        issues_fixed.append(f"Removed **{empty_rows}** completely empty rows")
+
+    empty_cols = [c for c in df.columns if df[c].isnull().all()]
+    if empty_cols:
+        df = df.drop(columns=empty_cols)
+        issues_fixed.append(f"Removed **{len(empty_cols)}** completely empty columns: {', '.join(empty_cols)}")
+
+    # ── 2. Strip whitespace from all string columns ───────────────────────────
+    str_cols = df.select_dtypes(include='object').columns
+    df[str_cols] = df[str_cols].apply(lambda x: x.str.strip() if x.dtype == 'object' else x)
+    issues_fixed.append("Stripped leading/trailing whitespace from all text columns")
+
+    # ── 3. Fix Quantity column ────────────────────────────────────────────────
+    if 'Quantity' in df.columns:
+        # Convert to numeric, coerce garbage to NaN
+        before = df['Quantity'].isnull().sum()
+        df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
+        after = df['Quantity'].isnull().sum()
+        if after > before:
+            issues_warned.append(f"**{after - before}** non-numeric values in 'Quantity' were set to NaN and will be dropped")
+
+    # ── 4. Fix Price column ───────────────────────────────────────────────────
+    if 'Price' in df.columns:
+        # Remove currency symbols like ₹, £, $, €, commas
+        if df['Price'].dtype == object:
+            df['Price'] = df['Price'].astype(str).str.replace(r'[₹£$€,\s]', '', regex=True)
+        df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+        bad_price = df['Price'].isnull().sum()
+        if bad_price > 0:
+            issues_warned.append(f"**{bad_price}** non-numeric/invalid values in 'Price' were set to NaN and will be dropped")
+
+    # ── 5. Fix InvoiceDate column ─────────────────────────────────────────────
+    if 'InvoiceDate' in df.columns:
+        if df['InvoiceDate'].dtype == object:
+            # Try multiple date formats
+            for fmt in [None, '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d', '%d-%m-%Y', '%Y/%m/%d']:
+                try:
+                    if fmt:
+                        df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], format=fmt, errors='coerce')
+                    else:
+                        df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], infer_datetime_format=True, errors='coerce')
+                    if df['InvoiceDate'].isnull().sum() < len(df) * 0.5:
+                        break
+                except:
+                    continue
+        bad_dates = df['InvoiceDate'].isnull().sum()
+        if bad_dates > 0:
+            issues_warned.append(f"**{bad_dates}** unparseable dates in 'InvoiceDate' — those rows will be dropped")
+        else:
+            issues_fixed.append("Date column parsed successfully")
+
+    # ── 6. Fix Customer ID column ─────────────────────────────────────────────
+    if 'Customer ID' in df.columns:
+        # Remove decimals like 12345.0 → 12345
+        df['Customer ID'] = df['Customer ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        df['Customer ID'] = df['Customer ID'].replace({'nan': None, 'None': None, 'NaN': None, '': None})
+        issues_fixed.append("Cleaned Customer ID format (removed trailing .0, fixed nulls)")
+
+    # ── 7. Remove duplicate rows ──────────────────────────────────────────────
+    dupes = df.duplicated().sum()
+    if dupes > 0:
+        df = df.drop_duplicates()
+        issues_warned.append(f"Removed **{dupes}** fully duplicate rows")
+
+    # ── 8. Drop rows where essential columns are NaN ─────────────────────────
+    essential = [c for c in ['Quantity', 'Price', 'InvoiceDate'] if c in df.columns]
+    before = len(df)
+    df = df.dropna(subset=essential)
+    dropped = before - len(df)
+    if dropped > 0:
+        issues_warned.append(f"Dropped **{dropped}** rows with missing values in essential columns (Quantity/Price/Date)")
+
+    # ── 9. Fatal checks ───────────────────────────────────────────────────────
+    if len(df) < 100:
+        fatal_errors.append(f"Only **{len(df)}** valid rows remain after cleaning — too few to segment (need at least 100)")
+    if 'Customer ID' in df.columns:
+        valid_customers = df['Customer ID'].dropna().nunique()
+        if valid_customers < 10:
+            fatal_errors.append(f"Only **{valid_customers}** unique customers found — need at least 10 to segment")
+
+    return df, issues_fixed, issues_warned, fatal_errors
+
+# Run validation
+df, fixes, warnings, fatals = validate_and_repair(df)
+
+# ── Show validation report ────────────────────────────────────────────────────
+if fixes or warnings or fatals:
+    with st.expander("🔬 Data Validation Report", expanded=(len(fatals) > 0 or len(warnings) > 0)):
+        if fatals:
+            for f in fatals:
+                st.error(f"❌ Fatal: {f}")
+            st.stop()
+        if warnings:
+            st.markdown("**⚠️ Issues found and fixed — please review:**")
+            for w in warnings:
+                st.warning(f"⚠️ {w}")
+        if fixes:
+            st.markdown("**✅ Auto-repairs applied silently:**")
+            for f in fixes:
+                st.success(f"✅ {f}")
+
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊 Data Overview",
