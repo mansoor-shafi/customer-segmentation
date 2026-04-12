@@ -180,13 +180,7 @@ if uploaded_file is None:
             Upload your retail transaction dataset using the
             sidebar to begin the full segmentation pipeline.
         </p>
-        <div style='margin-top:28px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap;'>
-            <div style='color:#aaa; font-size:14px;'>✅ Data Exploration</div>
-            <div style='color:#aaa; font-size:14px;'>✅ Data Cleaning</div>
-            <div style='color:#aaa; font-size:14px;'>✅ RFM Features</div>
-            <div style='color:#aaa; font-size:14px;'>✅ Outlier Removal</div>
-            <div style='color:#aaa; font-size:14px;'>✅ K-Means Clustering</div>
-        </div>
+
     </div>
     """, unsafe_allow_html=True)
     st.stop()
