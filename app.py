@@ -387,10 +387,11 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df  = df.copy()
     rows_start  = len(cleaned_df)
 
-    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str")
-    cleaned_df = cleaned_df[cleaned_df["Invoice"].str.match(r"^\d{6}$") |
-                            ~cleaned_df["Invoice"].str.match(r"^[A-Za-z]")]
+    # Only remove clear cancellations (invoices starting with 'C') and keep everything else
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str").str.strip()
+    cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.startswith("C")]
 
+    # StockCode: only filter if dataset clearly uses standard codes (safety check)
     if "StockCode" in cleaned_df.columns:
         cleaned_df["StockCode"] = cleaned_df["StockCode"].astype("str")
         mask_sc = (cleaned_df["StockCode"].str.match(r"^\d{5}$") |
