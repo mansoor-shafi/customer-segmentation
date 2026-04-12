@@ -237,6 +237,36 @@ def detect_columns(df_cols):
 auto_map = detect_columns(list(df.columns))
 df.rename(columns=auto_map, inplace=True)
 
+# ── Show what was mapped so user can verify ───────────────────────────────────
+if auto_map:
+    mapped_info = " &nbsp;|&nbsp; ".join([f"<code>{k}</code> → <strong>{v}</strong>" for k, v in auto_map.items()])
+    st.sidebar.markdown(f"<small style='color:#666;'>📋 Columns mapped:<br>{mapped_info}</small>", unsafe_allow_html=True)
+
+# ── Fallback: if Invoice still not right, try to find it directly ─────────────
+if "Invoice" not in df.columns:
+    for c in df.columns:
+        if "invoice" in c.lower() or "order" in c.lower() or "bill" in c.lower():
+            df.rename(columns={c: "Invoice"}, inplace=True)
+            break
+
+if "Customer ID" not in df.columns:
+    for c in df.columns:
+        if "customer" in c.lower() or "cust" in c.lower() or "client" in c.lower():
+            df.rename(columns={c: "Customer ID"}, inplace=True)
+            break
+
+if "Price" not in df.columns:
+    for c in df.columns:
+        if "price" in c.lower() or "unit" in c.lower() or "cost" in c.lower():
+            df.rename(columns={c: "Price"}, inplace=True)
+            break
+
+if "InvoiceDate" not in df.columns:
+    for c in df.columns:
+        if "date" in c.lower():
+            df.rename(columns={c: "InvoiceDate"}, inplace=True)
+            break
+
 # ── Check required columns & let user fix missing ones ───────────────────────
 essential = ["Invoice", "Quantity", "InvoiceDate", "Price", "Customer ID"]
 missing_cols = [c for c in essential if c not in df.columns]
@@ -412,6 +442,9 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df["InvoiceDate"]    = pd.to_datetime(cleaned_df["InvoiceDate"], errors="coerce")
     cleaned_df.dropna(subset=["InvoiceDate"], inplace=True)
     cleaned_df["SalesLineTotal"] = cleaned_df["Quantity"] * cleaned_df["Price"]
+
+    # Make sure Invoice column is string for nunique to work correctly
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(str).str.strip()
 
     aggregated_df = cleaned_df.groupby("Customer ID", as_index=False).agg(
         MonetaryValue=("SalesLineTotal", "sum"),
