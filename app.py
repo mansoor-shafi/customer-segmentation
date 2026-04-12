@@ -499,9 +499,8 @@ with st.spinner("⚙️ Running full pipeline..."):
     final_sil = silhouette_score(scaled_df, cluster_labels)
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📊 Data Overview",
-    "🧹 Cleaning",
     "📐 RFM Features",
     "📈 Clustering",
     "🎯 Segments",
@@ -545,42 +544,9 @@ with tab1:
         st.dataframe(missing, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 2 — CLEANING
+# TAB 2 — RFM FEATURES
 # ─────────────────────────────────────────────────────────────────────────────
 with tab2:
-    st.markdown('<div class="section-title">Data Cleaning Pipeline</div>', unsafe_allow_html=True)
-
-    steps = [
-        ("1", "Valid Invoice Format",        "Kept only valid numeric invoices",          ""),
-        ("2", "Valid Stock Code Format",      "Kept standard stock code formats",          ""),
-        ("3", "Remove Missing Customer IDs",  "Dropped rows without Customer ID",          ""),
-        ("4", "Remove Zero / Invalid Prices", "Dropped rows where Price ≤ 0 or non-numeric",""),
-    ]
-    for num, title, desc, _ in steps:
-        st.markdown(f"""
-        <div style='background:#1a1a24; border:1px solid #2a2a40; border-left:4px solid #f0c060;
-                    border-radius:8px; padding:14px 20px; margin-bottom:12px;'>
-            <span style='color:#f0c060; font-weight:700; margin-right:10px;'>Step {num}</span>
-            <strong style='color:#e8e4dc;'>{title}</strong>
-            <div style='color:#888; font-size:13px; margin-top:4px;'>{desc}</div>
-        </div>""", unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-    for col, label, val in zip(
-        [c1, c2, c3],
-        ["Original Rows", "Rows After Cleaning", "Data Retained"],
-        [f"{rows_start:,}", f"{rows_end:,}", f"{pct_kept:.1f}%"]
-    ):
-        col.markdown(f"""
-        <div class="metric-card">
-            <div class="label">{label}</div>
-            <div class="value">{val}</div>
-        </div>""", unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 3 — RFM FEATURES
-# ─────────────────────────────────────────────────────────────────────────────
-with tab3:
     st.markdown('<div class="section-title">Feature Engineering — RFM</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
@@ -627,7 +593,7 @@ with tab3:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 4 — CLUSTERING (display only — pipeline already ran above)
 # ─────────────────────────────────────────────────────────────────────────────
-with tab4:
+with tab2:
     st.markdown('<div class="section-title">K-Means Clustering</div>', unsafe_allow_html=True)
     colors_list = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
 
@@ -697,7 +663,7 @@ with tab4:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 5 — SEGMENTS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab5:
+with tab2:
     st.markdown('<div class="section-title">Customer Segment Profiles</div>', unsafe_allow_html=True)
 
     cluster_summary = non_outliers_df.groupby("Cluster")[["MonetaryValue","Frequency","Recency"]].mean().round(2)
@@ -761,7 +727,7 @@ with tab5:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 6 — STRATEGIES
 # ─────────────────────────────────────────────────────────────────────────────
-with tab6:
+with tab2:
     st.markdown('<div class="section-title">Customer Segment Strategies</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Actionable marketing and retention strategies tailored for each customer segment to grow your business.</p>", unsafe_allow_html=True)
 
@@ -895,7 +861,7 @@ with tab6:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 7 — ANALYTICS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab7:
+with tab2:
     st.markdown('<div class="section-title">Business Analytics Dashboard</div>', unsafe_allow_html=True)
 
     try:
@@ -988,7 +954,7 @@ with tab7:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 8 — SEARCH & FILTER
 # ─────────────────────────────────────────────────────────────────────────────
-with tab8:
+with tab2:
     st.markdown('<div class="section-title">Search & Filter Customers</div>', unsafe_allow_html=True)
 
     try:
@@ -1067,7 +1033,7 @@ with tab8:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 9 — EXPORT
 # ─────────────────────────────────────────────────────────────────────────────
-with tab9:
+with tab2:
     st.markdown('<div class="section-title">Export Your Results</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Download your segmented data, analytics summaries, and strategy reports in multiple formats.</p>", unsafe_allow_html=True)
 
