@@ -417,16 +417,13 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df  = df.copy()
     rows_start  = len(cleaned_df)
 
-    # Only remove clear cancellations (invoices starting with 'C') and keep everything else
+    # Remove cancellations (invoices starting with 'C') — works for all datasets
     cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str").str.strip()
     cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.startswith("C")]
 
-    # StockCode: only filter if dataset clearly uses standard codes (safety check)
+    # Convert StockCode to string (no filtering — too risky across datasets)
     if "StockCode" in cleaned_df.columns:
         cleaned_df["StockCode"] = cleaned_df["StockCode"].astype("str")
-        mask_sc = (cleaned_df["StockCode"].str.match(r"^\d{5}$") |
-                   cleaned_df["StockCode"].str.match(r"^\d{5}[a-zA-Z]+$"))
-        cleaned_df = cleaned_df[mask_sc] if mask_sc.sum() > len(cleaned_df) * 0.3 else cleaned_df
 
     cleaned_df.dropna(subset=["Customer ID"], inplace=True)
     cleaned_df = cleaned_df[pd.to_numeric(cleaned_df["Price"], errors="coerce") > 0]
@@ -469,6 +466,10 @@ with st.spinner("⚙️ Running full pipeline..."):
         outliers_removed = 0
 
     # ── Step 4: Scaling ───────────────────────────────────────────────────────
+    if len(non_outliers_df) < 10:
+        st.error(f"❌ Only **{len(non_outliers_df)}** customers remain after cleaning. Cannot cluster. Please check your dataset has enough valid transactions.")
+        st.stop()
+
     scaler    = StandardScaler()
     scaled    = scaler.fit_transform(non_outliers_df[["MonetaryValue", "Frequency", "Recency"]])
     scaled_df = pd.DataFrame(scaled, index=non_outliers_df.index,
