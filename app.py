@@ -519,7 +519,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 4 — CLUSTERING (display only — pipeline already ran above)
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab3:
     st.markdown('<div class="section-title">K-Means Clustering</div>', unsafe_allow_html=True)
     colors_list = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
 
@@ -589,7 +589,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 5 — SEGMENTS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab4:
     st.markdown('<div class="section-title">Customer Segment Profiles</div>', unsafe_allow_html=True)
 
     cluster_summary = non_outliers_df.groupby("Cluster")[["MonetaryValue","Frequency","Recency"]].mean().round(2)
@@ -653,7 +653,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 6 — STRATEGIES
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab5:
     st.markdown('<div class="section-title">Customer Segment Strategies</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Actionable marketing and retention strategies tailored for each customer segment to grow your business.</p>", unsafe_allow_html=True)
 
@@ -787,7 +787,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 7 — ANALYTICS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab6:
     st.markdown('<div class="section-title">Business Analytics Dashboard</div>', unsafe_allow_html=True)
 
     try:
@@ -880,7 +880,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 8 — SEARCH & FILTER
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab7:
     st.markdown('<div class="section-title">Search & Filter Customers</div>', unsafe_allow_html=True)
 
     try:
@@ -959,7 +959,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 9 — EXPORT
 # ─────────────────────────────────────────────────────────────────────────────
-with tab2:
+with tab8:
     st.markdown('<div class="section-title">Export Your Results</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Download your segmented data, analytics summaries, and strategy reports in multiple formats.</p>", unsafe_allow_html=True)
 
