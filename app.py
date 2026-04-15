@@ -237,36 +237,6 @@ def detect_columns(df_cols):
 auto_map = detect_columns(list(df.columns))
 df.rename(columns=auto_map, inplace=True)
 
-# ── Show what was mapped so user can verify ───────────────────────────────────
-if auto_map:
-    mapped_info = " &nbsp;|&nbsp; ".join([f"<code>{k}</code> → <strong>{v}</strong>" for k, v in auto_map.items()])
-    st.sidebar.markdown(f"<small style='color:#666;'>📋 Columns mapped:<br>{mapped_info}</small>", unsafe_allow_html=True)
-
-# ── Fallback: if Invoice still not right, try to find it directly ─────────────
-if "Invoice" not in df.columns:
-    for c in df.columns:
-        if "invoice" in c.lower() or "order" in c.lower() or "bill" in c.lower():
-            df.rename(columns={c: "Invoice"}, inplace=True)
-            break
-
-if "Customer ID" not in df.columns:
-    for c in df.columns:
-        if "customer" in c.lower() or "cust" in c.lower() or "client" in c.lower():
-            df.rename(columns={c: "Customer ID"}, inplace=True)
-            break
-
-if "Price" not in df.columns:
-    for c in df.columns:
-        if "price" in c.lower() or "unit" in c.lower() or "cost" in c.lower():
-            df.rename(columns={c: "Price"}, inplace=True)
-            break
-
-if "InvoiceDate" not in df.columns:
-    for c in df.columns:
-        if "date" in c.lower():
-            df.rename(columns={c: "InvoiceDate"}, inplace=True)
-            break
-
 # ── Check required columns & let user fix missing ones ───────────────────────
 essential = ["Invoice", "Quantity", "InvoiceDate", "Price", "Customer ID"]
 missing_cols = [c for c in essential if c not in df.columns]
@@ -289,48 +259,123 @@ if missing_cols:
         st.info("👆 Please map all missing columns above to continue.")
         st.stop()
 
-# ── Silent Auto-Repair ────────────────────────────────────────────────────────
-# Fix common data issues quietly without showing any report to the user
+# ══════════════════════════════════════════════════════════════════════════════
+# DATA VALIDATION & AUTO-REPAIR
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Remove completely empty rows and columns
-df = df.dropna(how='all')
-df = df.drop(columns=[c for c in df.columns if df[c].isnull().all()])
+def validate_and_repair(df):
+    """
+    Automatically detects and fixes common data quality issues.
+    Returns: (repaired_df, issues_fixed, issues_warned, fatal_errors)
+    """
+    issues_fixed  = []   # fixed silently
+    issues_warned = []   # fixed but user should know
+    fatal_errors  = []   # cannot proceed
 
-# Strip whitespace from string columns
-str_cols = df.select_dtypes(include='object').columns
-df[str_cols] = df[str_cols].apply(lambda x: x.str.strip() if x.dtype == 'object' else x)
+    # ── 1. Remove completely empty rows and columns ───────────────────────────
+    empty_rows = df.isnull().all(axis=1).sum()
+    if empty_rows > 0:
+        df = df.dropna(how='all')
+        issues_fixed.append(f"Removed **{empty_rows}** completely empty rows")
 
-# Fix Price — remove currency symbols, convert to numeric
-if 'Price' in df.columns:
-    if df['Price'].dtype == object:
-        df['Price'] = df['Price'].astype(str).str.replace(r'[₹£$€,\s]', '', regex=True)
-    df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+    empty_cols = [c for c in df.columns if df[c].isnull().all()]
+    if empty_cols:
+        df = df.drop(columns=empty_cols)
+        issues_fixed.append(f"Removed **{len(empty_cols)}** completely empty columns: {', '.join(empty_cols)}")
 
-# Fix Quantity — convert to numeric
-if 'Quantity' in df.columns:
-    df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
+    # ── 2. Strip whitespace from all string columns ───────────────────────────
+    str_cols = df.select_dtypes(include='object').columns
+    df[str_cols] = df[str_cols].apply(lambda x: x.str.strip() if x.dtype == 'object' else x)
+    issues_fixed.append("Stripped leading/trailing whitespace from all text columns")
 
-# Fix InvoiceDate — try multiple formats
-if 'InvoiceDate' in df.columns and df['InvoiceDate'].dtype == object:
-    for fmt in [None, '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d', '%d-%m-%Y', '%Y/%m/%d']:
-        try:
-            df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], format=fmt, errors='coerce') if fmt else pd.to_datetime(df['InvoiceDate'], infer_datetime_format=True, errors='coerce')
-            if df['InvoiceDate'].isnull().sum() < len(df) * 0.5:
-                break
-        except:
-            continue
+    # ── 3. Fix Quantity column ────────────────────────────────────────────────
+    if 'Quantity' in df.columns:
+        # Convert to numeric, coerce garbage to NaN
+        before = df['Quantity'].isnull().sum()
+        df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
+        after = df['Quantity'].isnull().sum()
+        if after > before:
+            issues_warned.append(f"**{after - before}** non-numeric values in 'Quantity' were set to NaN and will be dropped")
 
-# Fix Customer ID — remove trailing .0, fix nulls
-if 'Customer ID' in df.columns:
-    df['Customer ID'] = df['Customer ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-    df['Customer ID'] = df['Customer ID'].replace({'nan': None, 'None': None, 'NaN': None, '': None})
+    # ── 4. Fix Price column ───────────────────────────────────────────────────
+    if 'Price' in df.columns:
+        # Remove currency symbols like ₹, £, $, €, commas
+        if df['Price'].dtype == object:
+            df['Price'] = df['Price'].astype(str).str.replace(r'[₹£$€,\s]', '', regex=True)
+        df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+        bad_price = df['Price'].isnull().sum()
+        if bad_price > 0:
+            issues_warned.append(f"**{bad_price}** non-numeric/invalid values in 'Price' were set to NaN and will be dropped")
 
-# Remove duplicate rows
-df = df.drop_duplicates()
+    # ── 5. Fix InvoiceDate column ─────────────────────────────────────────────
+    if 'InvoiceDate' in df.columns:
+        if df['InvoiceDate'].dtype == object:
+            # Try multiple date formats
+            for fmt in [None, '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d', '%d-%m-%Y', '%Y/%m/%d']:
+                try:
+                    if fmt:
+                        df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], format=fmt, errors='coerce')
+                    else:
+                        df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'], infer_datetime_format=True, errors='coerce')
+                    if df['InvoiceDate'].isnull().sum() < len(df) * 0.5:
+                        break
+                except:
+                    continue
+        bad_dates = df['InvoiceDate'].isnull().sum()
+        if bad_dates > 0:
+            issues_warned.append(f"**{bad_dates}** unparseable dates in 'InvoiceDate' — those rows will be dropped")
+        else:
+            issues_fixed.append("Date column parsed successfully")
 
-# Drop rows with missing essential values
-essential = [c for c in ['Quantity', 'Price', 'InvoiceDate'] if c in df.columns]
-df = df.dropna(subset=essential)
+    # ── 6. Fix Customer ID column ─────────────────────────────────────────────
+    if 'Customer ID' in df.columns:
+        # Remove decimals like 12345.0 → 12345
+        df['Customer ID'] = df['Customer ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        df['Customer ID'] = df['Customer ID'].replace({'nan': None, 'None': None, 'NaN': None, '': None})
+        issues_fixed.append("Cleaned Customer ID format (removed trailing .0, fixed nulls)")
+
+    # ── 7. Remove duplicate rows ──────────────────────────────────────────────
+    dupes = df.duplicated().sum()
+    if dupes > 0:
+        df = df.drop_duplicates()
+        issues_warned.append(f"Removed **{dupes}** fully duplicate rows")
+
+    # ── 8. Drop rows where essential columns are NaN ─────────────────────────
+    essential = [c for c in ['Quantity', 'Price', 'InvoiceDate'] if c in df.columns]
+    before = len(df)
+    df = df.dropna(subset=essential)
+    dropped = before - len(df)
+    if dropped > 0:
+        issues_warned.append(f"Dropped **{dropped}** rows with missing values in essential columns (Quantity/Price/Date)")
+
+    # ── 9. Fatal checks ───────────────────────────────────────────────────────
+    if len(df) < 100:
+        fatal_errors.append(f"Only **{len(df)}** valid rows remain after cleaning — too few to segment (need at least 100)")
+    if 'Customer ID' in df.columns:
+        valid_customers = df['Customer ID'].dropna().nunique()
+        if valid_customers < 10:
+            fatal_errors.append(f"Only **{valid_customers}** unique customers found — need at least 10 to segment")
+
+    return df, issues_fixed, issues_warned, fatal_errors
+
+# Run validation
+df, fixes, warnings, fatals = validate_and_repair(df)
+
+# ── Show validation report ────────────────────────────────────────────────────
+if fixes or warnings or fatals:
+    with st.expander("🔬 Data Validation Report", expanded=(len(fatals) > 0 or len(warnings) > 0)):
+        if fatals:
+            for f in fatals:
+                st.error(f"❌ Fatal: {f}")
+            st.stop()
+        if warnings:
+            st.markdown("**⚠️ Issues found and fixed — please review:**")
+            for w in warnings:
+                st.warning(f"⚠️ {w}")
+        if fixes:
+            st.markdown("**✅ Auto-repairs applied silently:**")
+            for f in fixes:
+                st.success(f"✅ {f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CORE PIPELINE — runs fully before any tab renders
@@ -342,13 +387,15 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df  = df.copy()
     rows_start  = len(cleaned_df)
 
-    # Remove cancellations (invoices starting with 'C') — works for all datasets
-    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
-    cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.match(r'^C\d+')]
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str")
+    cleaned_df = cleaned_df[cleaned_df["Invoice"].str.match(r"^\d{6}$") |
+                            ~cleaned_df["Invoice"].str.match(r"^[A-Za-z]")]
 
-    # Convert StockCode to string (no filtering — too risky across datasets)
     if "StockCode" in cleaned_df.columns:
         cleaned_df["StockCode"] = cleaned_df["StockCode"].astype("str")
+        mask_sc = (cleaned_df["StockCode"].str.match(r"^\d{5}$") |
+                   cleaned_df["StockCode"].str.match(r"^\d{5}[a-zA-Z]+$"))
+        cleaned_df = cleaned_df[mask_sc] if mask_sc.sum() > len(cleaned_df) * 0.3 else cleaned_df
 
     cleaned_df.dropna(subset=["Customer ID"], inplace=True)
     cleaned_df = cleaned_df[pd.to_numeric(cleaned_df["Price"], errors="coerce") > 0]
@@ -364,9 +411,6 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df["InvoiceDate"]    = pd.to_datetime(cleaned_df["InvoiceDate"], errors="coerce")
     cleaned_df.dropna(subset=["InvoiceDate"], inplace=True)
     cleaned_df["SalesLineTotal"] = cleaned_df["Quantity"] * cleaned_df["Price"]
-
-    # Make sure Invoice column is string for nunique to work correctly
-    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
 
     aggregated_df = cleaned_df.groupby("Customer ID", as_index=False).agg(
         MonetaryValue=("SalesLineTotal", "sum"),
@@ -391,10 +435,6 @@ with st.spinner("⚙️ Running full pipeline..."):
         outliers_removed = 0
 
     # ── Step 4: Scaling ───────────────────────────────────────────────────────
-    if len(non_outliers_df) < 10:
-        st.error(f"❌ Only **{len(non_outliers_df)}** customers remain after cleaning. Cannot cluster. Please check your dataset has enough valid transactions.")
-        st.stop()
-
     scaler    = StandardScaler()
     scaled    = scaler.fit_transform(non_outliers_df[["MonetaryValue", "Frequency", "Recency"]])
     scaled_df = pd.DataFrame(scaled, index=non_outliers_df.index,
@@ -425,8 +465,9 @@ with st.spinner("⚙️ Running full pipeline..."):
     final_sil = silhouette_score(scaled_df, cluster_labels)
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊 Data Overview",
+    "🧹 Cleaning",
     "📐 RFM Features",
     "📈 Clustering",
     "🎯 Segments",
@@ -470,9 +511,42 @@ with tab1:
         st.dataframe(missing, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 2 — RFM FEATURES
+# TAB 2 — CLEANING
 # ─────────────────────────────────────────────────────────────────────────────
 with tab2:
+    st.markdown('<div class="section-title">Data Cleaning Pipeline</div>', unsafe_allow_html=True)
+
+    steps = [
+        ("1", "Valid Invoice Format",        "Kept only valid numeric invoices",          ""),
+        ("2", "Valid Stock Code Format",      "Kept standard stock code formats",          ""),
+        ("3", "Remove Missing Customer IDs",  "Dropped rows without Customer ID",          ""),
+        ("4", "Remove Zero / Invalid Prices", "Dropped rows where Price ≤ 0 or non-numeric",""),
+    ]
+    for num, title, desc, _ in steps:
+        st.markdown(f"""
+        <div style='background:#1a1a24; border:1px solid #2a2a40; border-left:4px solid #f0c060;
+                    border-radius:8px; padding:14px 20px; margin-bottom:12px;'>
+            <span style='color:#f0c060; font-weight:700; margin-right:10px;'>Step {num}</span>
+            <strong style='color:#e8e4dc;'>{title}</strong>
+            <div style='color:#888; font-size:13px; margin-top:4px;'>{desc}</div>
+        </div>""", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    for col, label, val in zip(
+        [c1, c2, c3],
+        ["Original Rows", "Rows After Cleaning", "Data Retained"],
+        [f"{rows_start:,}", f"{rows_end:,}", f"{pct_kept:.1f}%"]
+    ):
+        col.markdown(f"""
+        <div class="metric-card">
+            <div class="label">{label}</div>
+            <div class="value">{val}</div>
+        </div>""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 3 — RFM FEATURES
+# ─────────────────────────────────────────────────────────────────────────────
+with tab3:
     st.markdown('<div class="section-title">Feature Engineering — RFM</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
@@ -519,7 +593,7 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 4 — CLUSTERING (display only — pipeline already ran above)
 # ─────────────────────────────────────────────────────────────────────────────
-with tab3:
+with tab4:
     st.markdown('<div class="section-title">K-Means Clustering</div>', unsafe_allow_html=True)
     colors_list = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
 
@@ -589,7 +663,7 @@ with tab3:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 5 — SEGMENTS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab4:
+with tab5:
     st.markdown('<div class="section-title">Customer Segment Profiles</div>', unsafe_allow_html=True)
 
     cluster_summary = non_outliers_df.groupby("Cluster")[["MonetaryValue","Frequency","Recency"]].mean().round(2)
@@ -653,7 +727,7 @@ with tab4:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 6 — STRATEGIES
 # ─────────────────────────────────────────────────────────────────────────────
-with tab5:
+with tab6:
     st.markdown('<div class="section-title">Customer Segment Strategies</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Actionable marketing and retention strategies tailored for each customer segment to grow your business.</p>", unsafe_allow_html=True)
 
@@ -787,7 +861,7 @@ with tab5:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 7 — ANALYTICS
 # ─────────────────────────────────────────────────────────────────────────────
-with tab6:
+with tab7:
     st.markdown('<div class="section-title">Business Analytics Dashboard</div>', unsafe_allow_html=True)
 
     try:
@@ -880,7 +954,7 @@ with tab6:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 8 — SEARCH & FILTER
 # ─────────────────────────────────────────────────────────────────────────────
-with tab7:
+with tab8:
     st.markdown('<div class="section-title">Search & Filter Customers</div>', unsafe_allow_html=True)
 
     try:
@@ -959,7 +1033,7 @@ with tab7:
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 9 — EXPORT
 # ─────────────────────────────────────────────────────────────────────────────
-with tab8:
+with tab9:
     st.markdown('<div class="section-title">Export Your Results</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#888; margin-bottom:24px;'>Download your segmented data, analytics summaries, and strategy reports in multiple formats.</p>", unsafe_allow_html=True)
 
