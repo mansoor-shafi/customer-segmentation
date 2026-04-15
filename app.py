@@ -203,20 +203,66 @@ def load_data(file):
 with st.spinner("Loading data..."):
     df = load_data(uploaded_file)
 
-# ── Normalize column names (handle case differences) ─────────────────────────
-col_map = {}
-for col in df.columns:
-    stripped = col.strip()
-    lower = stripped.lower().replace(" ", "")
-    if lower == "invoice": col_map[col] = "Invoice"
-    elif lower == "stockcode": col_map[col] = "StockCode"
-    elif lower == "description": col_map[col] = "Description"
-    elif lower == "quantity": col_map[col] = "Quantity"
-    elif lower == "invoicedate": col_map[col] = "InvoiceDate"
-    elif lower == "price" or lower == "unitprice": col_map[col] = "Price"
-    elif lower == "customerid" or lower == "customer id": col_map[col] = "Customer ID"
-    elif lower == "country": col_map[col] = "Country"
-df.rename(columns=col_map, inplace=True)
+# ── Smart Column Detection ────────────────────────────────────────────────────
+from difflib import get_close_matches
+
+REQUIRED_COLS = {
+    "Invoice":      ["invoice", "invoiceno", "invoice_no", "invoicenumber", "order_id", "orderid", "transactionid", "transaction_id", "bill_no"],
+    "StockCode":    ["stockcode", "stock_code", "productid", "product_id", "itemcode", "item_code", "sku", "productcode"],
+    "Quantity":     ["quantity", "qty", "units", "amount", "count", "number_of_items", "items"],
+    "InvoiceDate":  ["invoicedate", "invoice_date", "date", "order_date", "transaction_date", "purchasedate", "purchase_date"],
+    "Price":        ["price", "unitprice", "unit_price", "selling_price", "amount", "cost", "value", "rate"],
+    "Customer ID":  ["customerid", "customer_id", "custid", "cust_id", "client_id", "clientid", "userid", "user_id", "member_id"],
+    "Description":  ["description", "product_name", "item_name", "productname", "itemname", "product", "item", "name"],
+    "Country":      ["country", "region", "location", "country_name", "nation"],
+}
+
+def detect_columns(df_cols):
+    detected = {}
+    used = set()
+    normalized = {c: c.strip().lower().replace(" ", "").replace("_", "").replace("-", "") for c in df_cols}
+    for target, aliases in REQUIRED_COLS.items():
+        for orig, norm in normalized.items():
+            if orig in used: continue
+            if norm in aliases:
+                detected[orig] = target
+                used.add(orig)
+                break
+        else:
+            # fuzzy match
+            candidates = [c for c in normalized if c not in used]
+            norms = [normalized[c] for c in candidates]
+            matches = get_close_matches(target.lower().replace(" ", ""), norms, n=1, cutoff=0.6)
+            if matches:
+                orig = candidates[norms.index(matches[0])]
+                detected[orig] = target
+                used.add(orig)
+    return detected
+
+auto_map = detect_columns(list(df.columns))
+df.rename(columns=auto_map, inplace=True)
+
+# ── Check required columns & let user fix missing ones ───────────────────────
+essential = ["Invoice", "Quantity", "InvoiceDate", "Price", "Customer ID"]
+missing_cols = [c for c in essential if c not in df.columns]
+
+if missing_cols:
+    st.warning(f"⚠️ Could not auto-detect these required columns: **{', '.join(missing_cols)}**")
+    st.markdown("#### 🔧 Please map your columns manually:")
+    all_cols = list(df.columns)
+    manual_map = {}
+    cols_ui = st.columns(len(missing_cols))
+    for i, req in enumerate(missing_cols):
+        with cols_ui[i]:
+            chosen = st.selectbox(f"Which column is **{req}**?", ["-- Select --"] + all_cols, key=f"map_{req}")
+            if chosen != "-- Select --":
+                manual_map[chosen] = req
+    if len(manual_map) == len(missing_cols):
+        df.rename(columns=manual_map, inplace=True)
+        st.success("✅ Columns mapped! Scroll down to continue.")
+    else:
+        st.info("👆 Please map all missing columns above to continue.")
+        st.stop()
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
