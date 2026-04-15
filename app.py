@@ -344,7 +344,7 @@ with st.spinner("⚙️ Running full pipeline..."):
 
     # Remove cancellations (invoices starting with 'C') — works for all datasets
     cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
-   cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.match(r'^C\d+')]
+    cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.match(r'^C\d+')]
 
     # Convert StockCode to string (no filtering — too risky across datasets)
     if "StockCode" in cleaned_df.columns:
@@ -366,7 +366,7 @@ with st.spinner("⚙️ Running full pipeline..."):
     cleaned_df["SalesLineTotal"] = cleaned_df["Quantity"] * cleaned_df["Price"]
 
     # Make sure Invoice column is string for nunique to work correctly
-   cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
 
     aggregated_df = cleaned_df.groupby("Customer ID", as_index=False).agg(
         MonetaryValue=("SalesLineTotal", "sum"),
