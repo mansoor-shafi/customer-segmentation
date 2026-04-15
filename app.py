@@ -265,13 +265,16 @@ if missing_cols:
         st.stop()
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊 Data Overview",
     "🧹 Cleaning",
     "📐 RFM Features",
     "📈 Clustering",
     "🎯 Segments",
-    "💡 Strategies"
+    "💡 Strategies",
+    "📊 Analytics",
+    "🔍 Search & Filter",
+    "📤 Export"
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -722,3 +725,256 @@ with tab6:
     }
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 7 — ANALYTICS
+# ─────────────────────────────────────────────────────────────────────────────
+with tab7:
+    st.markdown('<div class="section-title">Business Analytics Dashboard</div>', unsafe_allow_html=True)
+
+    try:
+        colors_list_a = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
+
+        # ── Top KPI row ──
+        total_revenue = non_outliers_df["MonetaryValue"].sum()
+        avg_order_val = non_outliers_df["MonetaryValue"].mean()
+        avg_frequency = non_outliers_df["Frequency"].mean()
+        avg_recency   = non_outliers_df["Recency"].mean()
+
+        c1, c2, c3, c4 = st.columns(4)
+        for col, label, val in zip(
+            [c1, c2, c3, c4],
+            ["Total Revenue", "Avg Customer Spend", "Avg Order Frequency", "Avg Recency (days)"],
+            [f"£{total_revenue:,.0f}", f"£{avg_order_val:,.0f}", f"{avg_frequency:.1f}", f"{avg_recency:.0f}"]
+        ):
+            col.markdown(f"""
+            <div class="metric-card">
+                <div class="label">{label}</div>
+                <div class="value">{val}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown('<div class="section-title">Revenue & Customer Share by Segment</div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+
+        cluster_rev   = non_outliers_df.groupby("Cluster")["MonetaryValue"].sum()
+        cluster_count = non_outliers_df.groupby("Cluster")["Customer ID"].count()
+        seg_labels    = [CLUSTER_NAMES.get(i, f"Cluster {i}") for i in cluster_rev.index]
+        pie_colors    = [colors_list_a[i % len(colors_list_a)] for i in cluster_rev.index]
+
+        with c1:
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor='#0f0f13')
+            ax.set_facecolor('#0f0f13')
+            wedges, texts, autotexts = ax.pie(
+                cluster_rev.values, labels=seg_labels, colors=pie_colors,
+                autopct='%1.1f%%', startangle=140,
+                wedgeprops=dict(edgecolor='#0f0f13', linewidth=2)
+            )
+            for t in texts: t.set_color('#aaa'); t.set_fontsize(10)
+            for at in autotexts: at.set_color('#0f0f13'); at.set_fontweight('bold')
+            ax.set_title('Revenue Share by Segment', color='#e8e4dc', fontsize=13, pad=15)
+            st.pyplot(fig); plt.close()
+
+        with c2:
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor='#0f0f13')
+            ax.set_facecolor('#0f0f13')
+            wedges, texts, autotexts = ax.pie(
+                cluster_count.values, labels=seg_labels, colors=pie_colors,
+                autopct='%1.1f%%', startangle=140,
+                wedgeprops=dict(edgecolor='#0f0f13', linewidth=2)
+            )
+            for t in texts: t.set_color('#aaa'); t.set_fontsize(10)
+            for at in autotexts: at.set_color('#0f0f13'); at.set_fontweight('bold')
+            ax.set_title('Customer Share by Segment', color='#e8e4dc', fontsize=13, pad=15)
+            st.pyplot(fig); plt.close()
+
+        st.markdown('<div class="section-title">Average RFM Values per Segment</div>', unsafe_allow_html=True)
+        rfm_summary = non_outliers_df.groupby("Cluster")[["MonetaryValue","Frequency","Recency"]].mean().round(1)
+        rfm_summary.index = [CLUSTER_NAMES.get(i, f"Cluster {i}") for i in rfm_summary.index]
+
+        fig, axes = plt.subplots(1, 3, figsize=(16, 5), facecolor='#0f0f13')
+        for ax, metric, color in zip(axes, ["MonetaryValue","Frequency","Recency"], ["#f0c060","#4e9af1","#50c878"]):
+            ax.set_facecolor('#16161d')
+            bars = ax.barh(rfm_summary.index, rfm_summary[metric], color=color, edgecolor='none', alpha=0.85)
+            for bar, val in zip(bars, rfm_summary[metric]):
+                ax.text(bar.get_width() * 1.01, bar.get_y() + bar.get_height()/2,
+                        f'{val:,.1f}', va='center', color='#aaa', fontsize=10)
+            ax.set_title(metric, color='#e8e4dc', fontsize=13)
+            ax.tick_params(colors='#666', labelsize=9)
+            for spine in ax.spines.values(): spine.set_color('#2a2a40')
+            ax.set_xlim(0, rfm_summary[metric].max() * 1.18)
+        plt.tight_layout()
+        st.pyplot(fig); plt.close()
+
+        st.markdown('<div class="section-title">RFM Correlation Heatmap</div>', unsafe_allow_html=True)
+        fig, ax = plt.subplots(figsize=(6, 4), facecolor='#0f0f13')
+        ax.set_facecolor('#16161d')
+        corr = non_outliers_df[["MonetaryValue","Frequency","Recency"]].corr()
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", ax=ax,
+                    linewidths=0.5, linecolor='#0f0f13',
+                    annot_kws={"size": 13, "color": "white"})
+        ax.set_title("Correlation between RFM Features", color='#e8e4dc', fontsize=13, pad=12)
+        ax.tick_params(colors='#aaa')
+        st.pyplot(fig); plt.close()
+
+    except Exception as e:
+        st.error(f"Analytics error: {e}. Please run the Clustering tab first.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 8 — SEARCH & FILTER
+# ─────────────────────────────────────────────────────────────────────────────
+with tab8:
+    st.markdown('<div class="section-title">Search & Filter Customers</div>', unsafe_allow_html=True)
+
+    try:
+        search_df = non_outliers_df.copy()
+        if n_clusters == 4:
+            search_df["Segment"] = search_df["Cluster"].map(CLUSTER_NAMES)
+        else:
+            search_df["Segment"] = "Cluster " + search_df["Cluster"].astype(str)
+
+        # ── Search by Customer ID ──
+        st.markdown("#### 🔍 Look Up a Customer")
+        cust_input = st.text_input("Enter Customer ID", placeholder="e.g. 12345")
+        if cust_input:
+            result = search_df[search_df["Customer ID"].astype(str).str.contains(cust_input.strip())]
+            if result.empty:
+                st.warning("No customer found with that ID.")
+            else:
+                for _, row in result.iterrows():
+                    seg_color = colors_list[int(row["Cluster"]) % len(colors_list)]
+                    st.markdown(f"""
+                    <div style='background:#1a1a24; border:1px solid #2a2a40; border-left:5px solid {seg_color};
+                                border-radius:10px; padding:20px; margin-bottom:12px;'>
+                        <div style='font-size:18px; font-weight:700; color:{seg_color};'>
+                            Customer #{int(row["Customer ID"])}
+                        </div>
+                        <div style='display:flex; gap:32px; margin-top:12px; flex-wrap:wrap;'>
+                            <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Segment</div>
+                                 <div style='color:#e8e4dc; font-weight:600;'>{row["Segment"]}</div></div>
+                            <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Total Spend</div>
+                                 <div style='color:#e8e4dc; font-weight:600;'>£{row["MonetaryValue"]:,.2f}</div></div>
+                            <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Orders</div>
+                                 <div style='color:#e8e4dc; font-weight:600;'>{int(row["Frequency"])}</div></div>
+                            <div><div style='color:#555; font-size:11px; text-transform:uppercase;'>Last Purchase</div>
+                                 <div style='color:#e8e4dc; font-weight:600;'>{int(row["Recency"])} days ago</div></div>
+                        </div>
+                    </div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── Filter by Segment ──
+        st.markdown("#### 🗂️ Filter by Segment")
+        all_segments = sorted(search_df["Segment"].unique())
+        selected_segs = st.multiselect("Select Segment(s)", all_segments, default=all_segments)
+
+        # ── Filter by RFM range ──
+        st.markdown("#### 🎚️ Filter by RFM Range")
+        fc1, fc2, fc3 = st.columns(3)
+        with fc1:
+            min_m, max_m = float(search_df["MonetaryValue"].min()), float(search_df["MonetaryValue"].max())
+            m_range = st.slider("Monetary Value (£)", min_m, max_m, (min_m, max_m))
+        with fc2:
+            min_f, max_f = int(search_df["Frequency"].min()), int(search_df["Frequency"].max())
+            f_range = st.slider("Frequency (orders)", min_f, max_f, (min_f, max_f))
+        with fc3:
+            min_r, max_r = int(search_df["Recency"].min()), int(search_df["Recency"].max())
+            r_range = st.slider("Recency (days)", min_r, max_r, (min_r, max_r))
+
+        filtered = search_df[
+            (search_df["Segment"].isin(selected_segs)) &
+            (search_df["MonetaryValue"].between(*m_range)) &
+            (search_df["Frequency"].between(*f_range)) &
+            (search_df["Recency"].between(*r_range))
+        ]
+
+        st.markdown(f"<p style='color:#888; margin:12px 0;'>Showing <strong style='color:#f0c060;'>{len(filtered):,}</strong> customers</p>", unsafe_allow_html=True)
+        st.dataframe(
+            filtered[["Customer ID","Segment","MonetaryValue","Frequency","Recency"]].rename(columns={
+                "MonetaryValue": "Total Spend (£)", "Frequency": "Orders", "Recency": "Days Since Last Purchase"
+            }).reset_index(drop=True),
+            use_container_width=True
+        )
+
+    except Exception as e:
+        st.error(f"Search error: {e}. Please run the Clustering tab first.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 9 — EXPORT
+# ─────────────────────────────────────────────────────────────────────────────
+with tab9:
+    st.markdown('<div class="section-title">Export Your Results</div>', unsafe_allow_html=True)
+    st.markdown("<p style='color:#888; margin-bottom:24px;'>Download your segmented data, analytics summaries, and strategy reports in multiple formats.</p>", unsafe_allow_html=True)
+
+    try:
+        export_df = non_outliers_df.copy()
+        if n_clusters == 4:
+            export_df["Segment"] = export_df["Cluster"].map(CLUSTER_NAMES)
+        else:
+            export_df["Segment"] = "Cluster " + export_df["Cluster"].astype(str)
+
+        c1, c2, c3 = st.columns(3)
+
+        # ── Export 1: Full Segmented Customers ──
+        with c1:
+            st.markdown("""
+            <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
+                <div style='font-size:36px; margin-bottom:10px;'>👥</div>
+                <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Segmented Customers</div>
+                <div style='color:#888; font-size:13px; margin-bottom:16px;'>All customers with their RFM values and assigned segment</div>
+            </div>""", unsafe_allow_html=True)
+            csv1 = export_df[["Customer ID","MonetaryValue","Frequency","Recency","Cluster","Segment"]].to_csv(index=False).encode()
+            st.download_button("⬇️ Download Customer Segments CSV", csv1,
+                               file_name="customer_segments.csv", mime="text/csv", use_container_width=True)
+
+        # ── Export 2: Cluster Summary ──
+        with c2:
+            st.markdown("""
+            <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
+                <div style='font-size:36px; margin-bottom:10px;'>📊</div>
+                <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Cluster Summary Report</div>
+                <div style='color:#888; font-size:13px; margin-bottom:16px;'>Average RFM per segment with customer counts and revenue</div>
+            </div>""", unsafe_allow_html=True)
+            summary = export_df.groupby("Segment").agg(
+                Customers=("Customer ID", "count"),
+                Avg_Spend=("MonetaryValue", "mean"),
+                Total_Revenue=("MonetaryValue", "sum"),
+                Avg_Frequency=("Frequency", "mean"),
+                Avg_Recency=("Recency", "mean")
+            ).round(2).reset_index()
+            csv2 = summary.to_csv(index=False).encode()
+            st.download_button("⬇️ Download Cluster Summary CSV", csv2,
+                               file_name="cluster_summary.csv", mime="text/csv", use_container_width=True)
+
+        # ── Export 3: Strategy Report ──
+        with c3:
+            st.markdown("""
+            <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
+                <div style='font-size:36px; margin-bottom:10px;'>💡</div>
+                <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Strategy Report</div>
+                <div style='color:#888; font-size:13px; margin-bottom:16px;'>Full marketing strategy for each customer segment as text</div>
+            </div>""", unsafe_allow_html=True)
+            strategy_lines = ["CUSTOMER SEGMENTATION - MARKETING STRATEGY REPORT\n" + "="*55 + "\n"]
+            strat_data = {
+                "At-Risk Customers":  ["Win-back email with 15% discount","Feedback survey","Personal outreach for high spenders","Automated inactivity reminders"],
+                "Occasional Buyers":  ["Loyalty points program","Seasonal & holiday promotions","Personalized product recommendations","Monthly newsletter","Birthday offers"],
+                "High-Value Loyals":  ["VIP membership with exclusive perks","Referral reward program","Surprise thank-you gifts","Brand ambassador invitations","Subscription options"],
+                "New / Inactive":     ["3-part welcome email series","First purchase discount (10-20%)","Product onboarding guide","Social proof & reviews display","2nd purchase push after 7 days"],
+            }
+            for seg, tactics in strat_data.items():
+                strategy_lines.append(f"\n{seg.upper()}\n" + "-"*40)
+                for t in tactics:
+                    strategy_lines.append(f"  • {t}")
+            strategy_text = "\n".join(strategy_lines)
+            st.download_button("⬇️ Download Strategy Report TXT", strategy_text.encode(),
+                               file_name="strategy_report.txt", mime="text/plain", use_container_width=True)
+
+        # ── Preview section ──
+        st.markdown('<div class="section-title">📋 Export Preview</div>', unsafe_allow_html=True)
+        preview_tab1, preview_tab2 = st.tabs(["Customer Segments", "Cluster Summary"])
+        with preview_tab1:
+            st.dataframe(export_df[["Customer ID","Segment","MonetaryValue","Frequency","Recency"]].head(20).reset_index(drop=True), use_container_width=True)
+        with preview_tab2:
+            st.dataframe(summary, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Export error: {e}. Please run the Clustering tab first.")
