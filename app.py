@@ -343,7 +343,7 @@ with st.spinner("⚙️ Running full pipeline..."):
     rows_start  = len(cleaned_df)
 
     # Remove cancellations (invoices starting with 'C') — works for all datasets
-    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype("str").str.strip()
+    cleaned_df["Invoice"] = cleaned_df["Invoice"].astype(object).astype(str).str.strip()
     cleaned_df = cleaned_df[~cleaned_df["Invoice"].str.upper().str.startswith("C")]
 
     # Convert StockCode to string (no filtering — too risky across datasets)
