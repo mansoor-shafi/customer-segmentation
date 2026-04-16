@@ -263,15 +263,15 @@ if missing_cols:
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "📊 Data Overview",
-    "🧹 Cleaning",
-    "📐 RFM Features",
-    "📈 Clustering",
-    "🎯 Segments",
-    "💡 Strategies",
-    "📊 Analytics",
-    "🔍 Search & Filter",
-    "📤 Export"
+    " Data Overview",
+    " Cleaning",
+    " RFM Features",
+    " Clustering",
+    " Segments",
+    " Strategies",
+    " Analytics",
+    " Search & Filter",
+    " Export"
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
