@@ -142,15 +142,15 @@ CLUSTER_DESC = {
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🛍️ Customer Segmentation")
+    st.markdown("##  Customer Segmentation")
     st.markdown("*RFM Analysis + K-Means Clustering*")
     st.markdown("---")
     st.markdown("### ⚙️ Settings")
     remove_outliers = st.checkbox("Remove Outliers (IQR method)", value=True)
-    auto_k = st.checkbox("🤖 Auto-detect Best K", value=True, help="Automatically finds the optimal number of clusters using Silhouette + Elbow methods")
+    auto_k = st.checkbox(" Auto-detect Best K", value=True, help="Automatically finds the optimal number of clusters using Silhouette + Elbow methods")
     n_clusters = st.slider("Number of Clusters (K) — manual override", min_value=2, max_value=10, value=4, help="Only used when Auto-detect is OFF")
     st.markdown("---")
-    st.markdown("### 📁 Upload Data")
+    st.markdown("###  Upload Data")
     uploaded_file = st.file_uploader(
         "Upload Your Dataset (.xlsx or .csv)",
         type=["xlsx", "csv"],
@@ -174,7 +174,7 @@ if uploaded_file is None:
     st.markdown("""
     <div style='background:linear-gradient(135deg,#1a1a24,#1f1f2e); border:1px solid #2a2a40;
                 border-radius:16px; padding:48px; text-align:center; margin-top:32px;'>
-        <div style='font-size:56px; margin-bottom:16px;'>📂</div>
+        <div style='font-size:56px; margin-bottom:16px;'></div>
         <h2 style='color:#f0c060; font-family:"DM Serif Display",serif;'>Upload Your Dataset</h2>
         <p style='color:#888; max-width:480px; margin:0 auto; line-height:1.7;'>
             Upload your retail transaction dataset using the
@@ -479,14 +479,14 @@ with tab4:
         <div style='background:linear-gradient(135deg,#1a2a1a,#1a2410); border:1px solid #2a4a2a;
                     border-left:5px solid #50c878; border-radius:10px; padding:16px 20px; margin-bottom:20px;'>
             <div style='font-size:16px; font-weight:700; color:#50c878; margin-bottom:6px;'>
-                🤖 Auto-detected Best K = <span style='font-size:22px;'>{final_k}</span>
+                 Auto-detected Best K = <span style='font-size:22px;'>{final_k}</span>
             </div>
             <div style='color:#aaa; font-size:13px; line-height:1.8;'>
-                📈 <strong style='color:#e8e4dc;'>Silhouette method</strong> suggested k = <strong style='color:#f0c060;'>{best_sil_k}</strong>
+                 <strong style='color:#e8e4dc;'>Silhouette method</strong> suggested k = <strong style='color:#f0c060;'>{best_sil_k}</strong>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
-                📐 <strong style='color:#e8e4dc;'>Elbow method</strong> suggested k = <strong style='color:#f0c060;'>{best_elbow_k}</strong>
+                 <strong style='color:#e8e4dc;'>Elbow method</strong> suggested k = <strong style='color:#f0c060;'>{best_elbow_k}</strong>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
-                ✅ <strong style='color:#e8e4dc;'>Combined best</strong> = <strong style='color:#50c878;'>{final_k}</strong>
+                 <strong style='color:#e8e4dc;'>Combined best</strong> = <strong style='color:#50c878;'>{final_k}</strong>
             </div>
             <div style='color:#666; font-size:12px; margin-top:6px;'>
                 You can turn off Auto-detect in the sidebar to manually override this value.
@@ -643,11 +643,11 @@ with tab6:
             "tagline": "Previously loyal — now drifting away. Act fast before they're gone.",
             "goal": "Re-engage before they churn permanently",
             "tactics": [
-                ("📧 Win-Back Email Campaign", "Send a personalized 'We miss you' email with their purchase history and a limited-time discount (e.g. 15% off). Reference their last purchase to make it feel personal."),
-                ("🎁 Exclusive Re-Engagement Offer", "Offer a special deal only for returning customers — bundle discounts, free shipping, or a loyalty bonus. Create urgency with a 7-day expiry."),
-                ("📞 Personal Outreach", "For high-spending at-risk customers, assign a customer success rep to reach out directly via phone or personalized message."),
-                ("🔔 Reminder Notifications", "Set up automated reminders via SMS or push notifications after 30, 60, and 90 days of inactivity with progressively better offers."),
-                ("📊 Feedback Survey", "Ask why they stopped buying. Short 3-question survey. Use responses to fix product/service issues and show customers you care."),
+                (" Win-Back Email Campaign", "Send a personalized 'We miss you' email with their purchase history and a limited-time discount (e.g. 15% off). Reference their last purchase to make it feel personal."),
+                (" Exclusive Re-Engagement Offer", "Offer a special deal only for returning customers — bundle discounts, free shipping, or a loyalty bonus. Create urgency with a 7-day expiry."),
+                (" Personal Outreach", "For high-spending at-risk customers, assign a customer success rep to reach out directly via phone or personalized message."),
+                (" Reminder Notifications", "Set up automated reminders via SMS or push notifications after 30, 60, and 90 days of inactivity with progressively better offers."),
+                (" Feedback Survey", "Ask why they stopped buying. Short 3-question survey. Use responses to fix product/service issues and show customers you care."),
             ],
             "kpi": ["Re-activation rate > 20%", "Reduce churn by 30%", "Recover 15% of lost revenue"],
         },
@@ -658,11 +658,11 @@ with tab6:
             "tagline": "They like you — they just need more reasons to come back.",
             "goal": "Increase purchase frequency and build habit",
             "tactics": [
-                ("🎯 Loyalty Program", "Introduce a points-based rewards system. Every purchase earns points redeemable for discounts. Occasional buyers respond strongly to visible progress toward a reward."),
-                ("📅 Seasonal Promotions", "Target them during peak seasons (holidays, sales events) with early-access offers. Occasional buyers often need an occasion to justify purchasing."),
-                ("🛍️ Product Recommendations", "Use their purchase history to recommend complementary products. 'Customers who bought X also loved Y' increases basket size."),
-                ("💌 Monthly Newsletter", "Keep your brand top-of-mind with a monthly email featuring new arrivals, bestsellers, and exclusive member deals — not just promotions."),
-                ("🎉 Birthday & Anniversary Offers", "Send a special discount on their birthday or account anniversary. Personal touches convert occasional buyers into regulars."),
+                (" Loyalty Program", "Introduce a points-based rewards system. Every purchase earns points redeemable for discounts. Occasional buyers respond strongly to visible progress toward a reward."),
+                (" Seasonal Promotions", "Target them during peak seasons (holidays, sales events) with early-access offers. Occasional buyers often need an occasion to justify purchasing."),
+                (" Product Recommendations", "Use their purchase history to recommend complementary products. 'Customers who bought X also loved Y' increases basket size."),
+                (" Monthly Newsletter", "Keep your brand top-of-mind with a monthly email featuring new arrivals, bestsellers, and exclusive member deals — not just promotions."),
+                (" Birthday & Anniversary Offers", "Send a special discount on their birthday or account anniversary. Personal touches convert occasional buyers into regulars."),
             ],
             "kpi": ["Increase purchase frequency by 40%", "Grow average order value by 20%", "Convert 25% to loyal segment"],
         },
@@ -673,11 +673,11 @@ with tab6:
             "tagline": "Your best customers. Protect them, reward them, make them feel special.",
             "goal": "Retain, delight, and turn them into brand ambassadors",
             "tactics": [
-                ("💎 VIP / Premium Membership", "Create an exclusive VIP tier with perks like free express shipping, early sale access, dedicated support, and members-only products. Make them feel elite."),
-                ("🤝 Referral Program", "Loyal customers are your best marketers. Offer them rewards (store credit, gifts) for every friend they refer who makes a purchase."),
-                ("🎁 Surprise & Delight Gifts", "Periodically send unexpected thank-you gifts, handwritten notes, or exclusive product samples. Unexpected generosity builds unbreakable loyalty."),
-                ("📣 Brand Ambassador Program", "Invite top customers to review products, feature in social media, or join advisory panels. Recognition deepens emotional connection to your brand."),
-                ("🔒 Subscription / Auto-Replenishment", "For consumable products, offer a subscription option with a small discount. Locks in recurring revenue and makes switching harder."),
+                (" VIP / Premium Membership", "Create an exclusive VIP tier with perks like free express shipping, early sale access, dedicated support, and members-only products. Make them feel elite."),
+                (" Referral Program", "Loyal customers are your best marketers. Offer them rewards (store credit, gifts) for every friend they refer who makes a purchase."),
+                (" Surprise & Delight Gifts", "Periodically send unexpected thank-you gifts, handwritten notes, or exclusive product samples. Unexpected generosity builds unbreakable loyalty."),
+                (" Brand Ambassador Program", "Invite top customers to review products, feature in social media, or join advisory panels. Recognition deepens emotional connection to your brand."),
+                (" Subscription / Auto-Replenishment", "For consumable products, offer a subscription option with a small discount. Locks in recurring revenue and makes switching harder."),
             ],
             "kpi": ["Retain 95% of this segment", "Increase referral rate by 30%", "Grow CLV by 25%"],
         },
@@ -688,11 +688,11 @@ with tab6:
             "tagline": "First impressions matter. Onboard them well or lose them forever.",
             "goal": "Convert first-timers into repeat buyers",
             "tactics": [
-                ("👋 Welcome Series Email", "Send a 3-part automated welcome series: (1) Thank you + brand story, (2) Bestsellers + social proof, (3) First-purchase discount. Warm them up gradually."),
-                ("🏷️ First Purchase Incentive", "Offer a compelling first-order discount (e.g. 10-20% off or free shipping). Remove every barrier to that crucial second purchase."),
-                ("📱 Onboarding Journey", "Guide new customers through your product catalog with a 'Getting Started' guide, tutorial videos, or an interactive quiz to find products they'll love."),
-                ("⭐ Social Proof & Reviews", "Show them what other customers love — star ratings, reviews, UGC photos. New customers rely heavily on social proof to build trust."),
-                ("🔁 Second Purchase Push", "The key milestone is the second purchase. Trigger a special offer 7 days after the first purchase specifically designed to get them to buy again."),
+                (" Welcome Series Email", "Send a 3-part automated welcome series: (1) Thank you + brand story, (2) Bestsellers + social proof, (3) First-purchase discount. Warm them up gradually."),
+                (" First Purchase Incentive", "Offer a compelling first-order discount (e.g. 10-20% off or free shipping). Remove every barrier to that crucial second purchase."),
+                (" Onboarding Journey", "Guide new customers through your product catalog with a 'Getting Started' guide, tutorial videos, or an interactive quiz to find products they'll love."),
+                (" Social Proof & Reviews", "Show them what other customers love — star ratings, reviews, UGC photos. New customers rely heavily on social proof to build trust."),
+                (" Second Purchase Push", "The key milestone is the second purchase. Trigger a special offer 7 days after the first purchase specifically designed to get them to buy again."),
             ],
             "kpi": ["Convert 35% to repeat buyers", "Achieve 2nd purchase within 30 days", "Reduce early churn by 40%"],
         },
@@ -895,11 +895,11 @@ with tab8:
 
         st.markdown("---")
 
-        st.markdown("#### 🗂️ Filter by Segment")
+        st.markdown("####  Filter by Segment")
         all_segments = sorted(search_df["Segment"].unique())
         selected_segs = st.multiselect("Select Segment(s)", all_segments, default=all_segments)
 
-        st.markdown("#### 🎚️ Filter by RFM Range")
+        st.markdown("####  Filter by RFM Range")
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             min_m, max_m = float(search_df["MonetaryValue"].min()), float(search_df["MonetaryValue"].max())
@@ -948,18 +948,18 @@ with tab9:
         with c1:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
-                <div style='font-size:36px; margin-bottom:10px;'>👥</div>
+                <div style='font-size:36px; margin-bottom:10px;'></div>
                 <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Segmented Customers</div>
                 <div style='color:#888; font-size:13px; margin-bottom:16px;'>All customers with their RFM values and assigned segment</div>
             </div>""", unsafe_allow_html=True)
             csv1 = export_df[["Customer ID","MonetaryValue","Frequency","Recency","Cluster","Segment"]].to_csv(index=False).encode()
-            st.download_button("⬇️ Download Customer Segments CSV", csv1,
+            st.download_button(" Download Customer Segments CSV", csv1,
                                file_name="customer_segments.csv", mime="text/csv", use_container_width=True)
 
         with c2:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
-                <div style='font-size:36px; margin-bottom:10px;'>📊</div>
+                <div style='font-size:36px; margin-bottom:10px;'></div>
                 <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Cluster Summary Report</div>
                 <div style='color:#888; font-size:13px; margin-bottom:16px;'>Average RFM per segment with customer counts and revenue</div>
             </div>""", unsafe_allow_html=True)
@@ -977,7 +977,7 @@ with tab9:
         with c3:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
-                <div style='font-size:36px; margin-bottom:10px;'>💡</div>
+                <div style='font-size:36px; margin-bottom:10px;'></div>
                 <div style='font-size:16px; font-weight:700; color:#e8e4dc; margin-bottom:6px;'>Strategy Report</div>
                 <div style='color:#888; font-size:13px; margin-bottom:16px;'>Full marketing strategy for each customer segment as text</div>
             </div>""", unsafe_allow_html=True)
@@ -996,7 +996,7 @@ with tab9:
             st.download_button("⬇️ Download Strategy Report TXT", strategy_text.encode(),
                                file_name="strategy_report.txt", mime="text/plain", use_container_width=True)
 
-        st.markdown('<div class="section-title">📋 Export Preview</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"> Export Preview</div>', unsafe_allow_html=True)
         preview_tab1, preview_tab2 = st.tabs(["Customer Segments", "Cluster Summary"])
         with preview_tab1:
             st.dataframe(export_df[["Customer ID","Segment","MonetaryValue","Frequency","Recency"]].head(20).reset_index(drop=True), use_container_width=True)
