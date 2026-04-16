@@ -180,12 +180,8 @@ if uploaded_file is None:
             Upload your retail transaction dataset using the
             sidebar to begin the full segmentation pipeline.
         </p>
-        <div style='margin-top:28px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap;'>
-            <div style='color:#aaa; font-size:14px;'>✅ Data Exploration</div>
-            <div style='color:#aaa; font-size:14px;'>✅ Data Cleaning</div>
-            <div style='color:#aaa; font-size:14px;'>✅ RFM Features</div>
-            <div style='color:#aaa; font-size:14px;'>✅ Outlier Removal</div>
-            <div style='color:#aaa; font-size:14px;'>✅ K-Means Clustering</div>
+        <div style='margin-top:28px;'>
+            <span style='color:#f0c060; font-size:15px; font-weight:600; letter-spacing:1px;'>Team K-For-Cosines</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -464,25 +460,20 @@ with tab4:
             sil_scores.append(silhouette_score(scaled_df, labels))
 
     # ── Auto K Detection ──────────────────────────────────────────────────────
-    # Method 1: Best Silhouette Score
     best_sil_k = list(k_vals)[sil_scores.index(max(sil_scores))]
 
-    # Method 2: Elbow method — largest drop in inertia (second derivative)
     deltas = [inertias[i] - inertias[i+1] for i in range(len(inertias)-1)]
     accel  = [deltas[i] - deltas[i+1] for i in range(len(deltas)-1)]
     best_elbow_k = list(k_vals)[accel.index(max(accel)) + 1]
 
-    # Combined vote: average of both, round to nearest int
     best_auto_k = round((best_sil_k + best_elbow_k) / 2)
-    best_auto_k = max(2, min(10, best_auto_k))  # clamp between 2-10
+    best_auto_k = max(2, min(10, best_auto_k))
 
-    # Use auto or manual
     if auto_k:
         final_k = best_auto_k
     else:
         final_k = n_clusters
 
-    # ── Show Auto K Banner ────────────────────────────────────────────────────
     if auto_k:
         st.markdown(f"""
         <div style='background:linear-gradient(135deg,#1a2a1a,#1a2410); border:1px solid #2a4a2a;
@@ -528,8 +519,7 @@ with tab4:
     st.pyplot(fig)
     plt.close()
 
-    # Final clustering
-    n_clusters = final_k   # update n_clusters so rest of app uses correct value
+    n_clusters = final_k
     kmeans_final = KMeans(n_clusters=final_k, random_state=42, max_iter=1000, n_init=10)
     cluster_labels = kmeans_final.fit_predict(scaled_df)
     non_outliers_df = non_outliers_df.copy()
@@ -760,7 +750,6 @@ with tab6:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Summary comparison table ──
     st.markdown('<div class="section-title">📋 Quick Reference — All Strategies</div>', unsafe_allow_html=True)
     summary_data = {
         "Segment": ["⚠️ At-Risk", "🛒 Occasional Buyers", "👑 High-Value Loyals", "🌱 New / Inactive"],
@@ -781,7 +770,6 @@ with tab7:
     try:
         colors_list_a = ['#4e9af1','#f0a050','#50c878','#e05060','#c084fc','#fb923c','#34d399','#f472b6']
 
-        # ── Top KPI row ──
         total_revenue = non_outliers_df["MonetaryValue"].sum()
         avg_order_val = non_outliers_df["MonetaryValue"].mean()
         avg_frequency = non_outliers_df["Frequency"].mean()
@@ -878,7 +866,6 @@ with tab8:
         else:
             search_df["Segment"] = "Cluster " + search_df["Cluster"].astype(str)
 
-        # ── Search by Customer ID ──
         st.markdown("#### 🔍 Look Up a Customer")
         cust_input = st.text_input("Enter Customer ID", placeholder="e.g. 12345")
         if cust_input:
@@ -908,12 +895,10 @@ with tab8:
 
         st.markdown("---")
 
-        # ── Filter by Segment ──
         st.markdown("#### 🗂️ Filter by Segment")
         all_segments = sorted(search_df["Segment"].unique())
         selected_segs = st.multiselect("Select Segment(s)", all_segments, default=all_segments)
 
-        # ── Filter by RFM range ──
         st.markdown("#### 🎚️ Filter by RFM Range")
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
@@ -960,7 +945,6 @@ with tab9:
 
         c1, c2, c3 = st.columns(3)
 
-        # ── Export 1: Full Segmented Customers ──
         with c1:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
@@ -972,7 +956,6 @@ with tab9:
             st.download_button("⬇️ Download Customer Segments CSV", csv1,
                                file_name="customer_segments.csv", mime="text/csv", use_container_width=True)
 
-        # ── Export 2: Cluster Summary ──
         with c2:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
@@ -991,7 +974,6 @@ with tab9:
             st.download_button("⬇️ Download Cluster Summary CSV", csv2,
                                file_name="cluster_summary.csv", mime="text/csv", use_container_width=True)
 
-        # ── Export 3: Strategy Report ──
         with c3:
             st.markdown("""
             <div style='background:#1a1a24; border:1px solid #2a2a40; border-radius:12px; padding:24px; text-align:center; margin-bottom:16px;'>
@@ -1014,7 +996,6 @@ with tab9:
             st.download_button("⬇️ Download Strategy Report TXT", strategy_text.encode(),
                                file_name="strategy_report.txt", mime="text/plain", use_container_width=True)
 
-        # ── Preview section ──
         st.markdown('<div class="section-title">📋 Export Preview</div>', unsafe_allow_html=True)
         preview_tab1, preview_tab2 = st.tabs(["Customer Segments", "Cluster Summary"])
         with preview_tab1:
