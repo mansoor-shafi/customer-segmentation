@@ -101,21 +101,41 @@ section[data-testid="stSidebar"] {
     padding: 10px;
 }
 
-/* Tabs */
+/* Tabs — outlined style */
 .stTabs [data-baseweb="tab-list"] {
     background-color: #16161d;
     border-radius: 10px;
     gap: 4px;
+    padding: 4px;
 }
 .stTabs [data-baseweb="tab"] {
-    color: #888;
+    color: #aaa;
     font-family: 'DM Sans', sans-serif;
+    border: 1.5px solid #f0c060 !important;
+    border-radius: 8px !important;
+    padding: 6px 14px !important;
+    margin: 2px !important;
+    background-color: transparent !important;
+    transition: background-color 0.2s, color 0.2s;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: rgba(240, 192, 96, 0.12) !important;
+    color: #f0c060 !important;
 }
 .stTabs [aria-selected="true"] {
     background-color: #f0c060 !important;
     color: #0f0f13 !important;
-    border-radius: 8px;
+    border-radius: 8px !important;
     font-weight: 600;
+    border: 1.5px solid #f0c060 !important;
+}
+
+/* Remove default tab underline/indicator */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none !important;
+}
+.stTabs [data-baseweb="tab-border"] {
+    display: none !important;
 }
 
 div[data-testid="stDataFrame"] {
